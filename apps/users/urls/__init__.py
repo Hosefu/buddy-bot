@@ -1,10 +1,13 @@
 """
-URL конфигурация для пользователей
+Основная URL конфигурация для приложения users
 """
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenRefreshView
 
-from .views import (
+from .webhook_urls import urlpatterns as webhook_urlpatterns
+from .bot_urls import urlpatterns as bot_urlpatterns
+
+# Импортируем основные URL-шаблоны из модуля users
+from apps.users.views import (
     TelegramAuthView, CurrentUserView, ProfileView, PasswordChangeView,
     UserListView, UserDetailView, UserRoleAssignView, RoleListView,
     BuddyListView, telegram_mini_app_auth
@@ -17,22 +20,16 @@ urlpatterns = [
     # Аутентификация
     path('telegram/', TelegramAuthView.as_view(), name='telegram-auth'),
     path('telegram-simple/', telegram_mini_app_auth, name='telegram-simple-auth'),
-    path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('me/', CurrentUserView.as_view(), name='current-user'),
     
     # Профиль пользователя
     path('profile/', ProfileView.as_view(), name='profile'),
     path('change-password/', PasswordChangeView.as_view(), name='change-password'),
     
-    # Управление пользователями (админ)
-    path('users/', UserListView.as_view(), name='user-list'),
-    path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
-    
-    # Управление ролями
+    # Управление пользователями
+    path('list/', UserListView.as_view(), name='user-list'),
+    path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('<int:pk>/role/', UserRoleAssignView.as_view(), name='user-role-assign'),
     path('roles/', RoleListView.as_view(), name='role-list'),
-    path('users/<int:user_id>/roles/', UserRoleAssignView.as_view(), name='assign-role'),
-    path('users/<int:user_id>/roles/<int:role_id>/', UserRoleAssignView.as_view(), name='revoke-role'),
-    
-    # Список бадди
     path('buddies/', BuddyListView.as_view(), name='buddy-list'),
-]
+] 

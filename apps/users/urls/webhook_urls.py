@@ -1,5 +1,5 @@
 """
-URL для webhook эндпоинтов
+URL конфигурация для webhook эндпоинтов
 """
 from django.urls import path
 from apps.users.views import TelegramWebhookView
