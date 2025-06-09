@@ -32,10 +32,10 @@ urlpatterns = [
         path('articles/', include('apps.guides.urls')),
         
         # Webhook для Telegram бота
-        path('webhook/', include('apps.users.urls.webhook_urls')),
-        
+        path('webhook/', include('apps.users.webhook_urls')),
+
         # API для бота
-        path('bot/', include('apps.users.urls.bot_urls')),
+        path('bot/', include('apps.users.bot_urls')),
     ])),
     
     # Документация API

@@ -89,7 +89,9 @@ class ArticleAdmin(admin.ModelAdmin):
         'is_used_in_flows', 'created_at', 'updated_at'
     ]
     prepopulated_fields = {'slug': ('title',)}
-    filter_horizontal = ['reviewers']
+    # Связь с рецензентами реализована через промежуточную модель,
+    # поэтому поле `reviewers` не добавляется напрямую в форму статьи
+    filter_horizontal = []
     
     fieldsets = (
         ('Основная информация', {
@@ -99,7 +101,7 @@ class ArticleAdmin(admin.ModelAdmin):
             'fields': ('article_type', 'category', 'tags', 'difficulty_level')
         }),
         ('Авторство', {
-            'fields': ('author', 'reviewers')
+            'fields': ('author',)
         }),
         ('Метаданные', {
             'fields': ('reading_time_minutes', 'version', 'previous_version')
