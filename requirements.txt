@@ -38,6 +38,9 @@ drf-spectacular==0.27.0
 # Telegram Bot API
 aiogram==3.2.0
 
+# HTTP клиент
+requests==2.31.0
+
 # Утилиты для разработки
 ipython==8.17.2
 django-debug-toolbar==4.2.0
