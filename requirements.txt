@@ -1,0 +1,63 @@
+# Django и основные компоненты
+Django==4.2.9
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+django-filter==23.5
+
+# База данных
+psycopg2-binary==2.9.9
+
+# Аутентификация и безопасность
+djangorestframework-simplejwt==5.3.0
+cryptography==42.0.8
+
+# Мониторинг и логирование ошибок
+sentry-sdk==1.40.0
+
+# Celery и Redis для фоновых задач
+celery==5.3.4
+redis==5.0.1
+django-celery-beat==2.5.0
+django-celery-results==2.5.1
+
+# Работа с окружением
+python-decouple==3.8
+
+# Валидация данных
+marshmallow==3.20.2
+
+# Работа с датами
+python-dateutil==2.8.2
+
+# Логирование
+django-extensions==3.2.3
+
+# Документация API
+drf-spectacular==0.27.0
+
+# Telegram Bot API
+aiogram==3.2.0
+
+# Утилиты для разработки
+ipython==8.17.2
+django-debug-toolbar==4.2.0
+
+# Тестирование
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+
+# Линтеры и форматеры (для разработки)
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+
+# Работа с изображениями (на будущее)
+Pillow==10.1.0
+
+# Markdown для статей
+markdown==3.5.1
+
+# Timezone
+pytz==2023.3
