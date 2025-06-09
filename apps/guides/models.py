@@ -69,7 +69,7 @@ class ArticleCategory(BaseModel, ActiveModel):
         return self.name
     
     def get_all_subcategories(self):
-        """Возвращает все подкategории рекурсивно"""
+        """Возвращает все подкатегории рекурсивно"""
         subcategories = list(self.subcategories.filter(is_active=True))
         for subcategory in self.subcategories.filter(is_active=True):
             subcategories.extend(subcategory.get_all_subcategories())
