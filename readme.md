@@ -35,7 +35,7 @@
 
 ```bash
 git clone <repository-url>
-cd telegram-onboarding
+cd buddy-bot
 ```
 
 ### 2. Настройка окружения
