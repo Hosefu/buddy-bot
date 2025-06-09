@@ -180,7 +180,9 @@ SPECTACULAR_SETTINGS = {
 
 # CORS настройки
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=False, cast=bool)
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
+# При отсутствии заданных хостов используем пустой список, чтобы избежать ошибок
+# проверки конфигурации corsheaders
+CORS_ALLOWED_ORIGINS = [origin for origin in config('CORS_ALLOWED_ORIGINS', default='').split(',') if origin]
 
 # Celery настройки
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://127.0.0.1:6379/0')
