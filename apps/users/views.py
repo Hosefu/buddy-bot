@@ -399,10 +399,10 @@ def telegram_mini_app_auth(request):
                 telegram_username=telegram_data.get('username', '')
             )
             
-            # Назначаем базовую роль
+            # Назначаем базовую роль, если она ещё не присвоена
             try:
                 user_role = Role.objects.get(name='user')
-                UserRole.objects.create(user=user, role=user_role)
+                UserRole.objects.get_or_create(user=user, role=user_role)
             except Role.DoesNotExist:
                 pass
         
