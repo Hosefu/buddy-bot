@@ -17,6 +17,7 @@ RUN apt-get update \
         libpq-dev \
         gettext \
         curl \
+        netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # Копируем файл зависимостей
@@ -39,13 +40,19 @@ RUN addgroup --system django \
 # Устанавливаем права доступа
 RUN chown -R django:django /app \
     && chmod -R 777 /app/logs
-USER django
 
 # Собираем статические файлы
 RUN python manage.py collectstatic --noinput
 
+# Устанавливаем netcat для проверки доступности БД
+RUN apt-get update && apt-get install -y netcat-traditional
+
+# Копируем entrypoint скрипт
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Открываем порт
 EXPOSE 8000
 
-# Команда по умолчанию
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

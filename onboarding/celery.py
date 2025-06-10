@@ -4,6 +4,7 @@
 import os
 from celery import Celery
 from django.conf import settings
+from django.utils import timezone
 
 # Устанавливаем модуль настроек Django для Celery
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'onboarding.settings')

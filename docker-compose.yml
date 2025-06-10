@@ -34,78 +34,45 @@ services:
   # Django приложение
   web:
     build: .
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     ports:
       - "8000:8000"
-    environment:
-      - DJANGO_SETTINGS_MODULE=onboarding.settings.development
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=onboarding
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+      - db
+      - redis
+    entrypoint: /entrypoint.sh
+    command: python manage.py runserver 0.0.0.0:8000
 
   # Celery worker
   celery:
     build: .
-    command: celery -A onboarding worker --loglevel=info
     volumes:
       - .:/app
-    environment:
-      - DJANGO_SETTINGS_MODULE=onboarding.settings.development
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=onboarding
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+      - web
+      - redis
+    entrypoint: /entrypoint.sh
+    command: celery -A onboarding worker --loglevel=info
 
   # Celery beat (планировщик)
   celery-beat:
     build: .
-    command: celery -A onboarding beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
-    environment:
-      - DJANGO_SETTINGS_MODULE=onboarding.settings.development
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_NAME=onboarding
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - .env
     depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+      - web
+      - redis
+    entrypoint: /entrypoint.sh
+    command: celery -A onboarding beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 
   # Nginx (для production)
   nginx:
