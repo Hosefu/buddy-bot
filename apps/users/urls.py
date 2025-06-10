@@ -2,6 +2,7 @@
 URL конфигурация для пользователей
 """
 from django.urls import path
+from django.conf import settings
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
@@ -16,7 +17,6 @@ app_name = 'users'
 urlpatterns = [
     # Аутентификация
     path('telegram/', TelegramAuthView.as_view(), name='telegram-auth'),
-    path('telegram-simple/', telegram_mini_app_auth, name='telegram-simple-auth'),
     path('refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('me/', CurrentUserView.as_view(), name='current-user'),
     
@@ -40,3 +40,7 @@ urlpatterns = [
     path('webhook/telegram/', TelegramWebhookView.as_view(), name='telegram-webhook'),
     path('bot/user/<str:telegram_id>/', BotUserInfoView.as_view(), name='bot-user-info'),
 ]
+
+# Упрощенный эндпоинт авторизации используется только в режиме разработки
+if settings.DEBUG:
+    urlpatterns.insert(1, path('telegram-simple/', telegram_mini_app_auth, name='telegram-simple-auth'))
