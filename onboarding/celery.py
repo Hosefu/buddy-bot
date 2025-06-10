@@ -6,7 +6,7 @@ from celery import Celery
 from django.conf import settings
 
 # Устанавливаем модуль настроек Django для Celery
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'onboarding.settings.development')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'onboarding.settings')
 
 # Создаем экземпляр Celery
 app = Celery('onboarding')

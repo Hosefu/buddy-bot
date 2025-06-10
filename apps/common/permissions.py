@@ -2,6 +2,7 @@
 Общие разрешения для системы онбординга
 """
 from rest_framework import permissions
+from django.db import models
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):

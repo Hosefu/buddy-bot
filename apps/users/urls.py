@@ -1,13 +1,13 @@
 """
 URL конфигурация для пользователей
 """
-from django.urls import path, include
+from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     TelegramAuthView, CurrentUserView, ProfileView, PasswordChangeView,
     UserListView, UserDetailView, UserRoleAssignView, RoleListView,
-    BuddyListView, telegram_mini_app_auth
+    BuddyListView, telegram_mini_app_auth, TelegramWebhookView, BotUserInfoView
 )
 
 app_name = 'users'
@@ -35,4 +35,8 @@ urlpatterns = [
     
     # Список бадди
     path('buddies/', BuddyListView.as_view(), name='buddy-list'),
+    
+    # Webhook и Bot API
+    path('webhook/telegram/', TelegramWebhookView.as_view(), name='telegram-webhook'),
+    path('bot/user/<str:telegram_id>/', BotUserInfoView.as_view(), name='bot-user-info'),
 ]
