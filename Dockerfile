@@ -1,10 +1,10 @@
 # Используем официальный Python образ
 FROM python:3.11-slim
 
-# Устанавливаем переменные окружения
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV DJANGO_SETTINGS_MODULE=onboarding.settings.development
+# Устанавливаем переменные окружения для Python
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=onboarding.settings
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
@@ -18,7 +18,12 @@ RUN apt-get update \
         gettext \
         curl \
         netcat-traditional \
-    && rm -rf /var/lib/apt/lists/*
+        git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Обновляем pip до последней версии
+RUN pip install --upgrade pip
 
 # Копируем файл зависимостей
 COPY requirements.txt /app/
@@ -26,33 +31,31 @@ COPY requirements.txt /app/
 # Устанавливаем Python зависимости
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Создаем директории для логов и медиа файлов
+# Создаем директории для логов, медиа файлов и статики
 RUN mkdir -p /app/logs /app/media /app/staticfiles \
-    && chmod -R 777 /app/logs
+    && chmod -R 755 /app
 
 # Копируем код проекта
 COPY . /app/
 
-# Создаем пользователя для запуска приложения
-RUN addgroup --system django \
-    && adduser --system --ingroup django django
+# Создаем пользователя для запуска приложения (безопасность)
+RUN groupadd --system django \
+    && useradd --system --gid django --home /app django \
+    && chown -R django:django /app \
+    && chmod -R 755 /app/logs
 
-# Устанавливаем права доступа
-RUN chown -R django:django /app \
-    && chmod -R 777 /app/logs
-
-# Собираем статические файлы
-RUN python manage.py collectstatic --noinput
-
-# Устанавливаем netcat для проверки доступности БД
-RUN apt-get update && apt-get install -y netcat-traditional
-
-# Копируем entrypoint скрипт
+# Копируем и настраиваем entrypoint скрипт
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Открываем порт
+# Открываем порт для Django
 EXPOSE 8000
 
+# Используем созданного пользователя
+USER django
+
+# Точка входа
 ENTRYPOINT ["/entrypoint.sh"]
+
+# Команда по умолчанию
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
