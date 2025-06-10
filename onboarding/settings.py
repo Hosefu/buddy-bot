@@ -80,7 +80,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'onboarding.wsgi.application'
 
-# База данных - исправляем конфигурацию
+# База данных - исправляем конфигурацию PostgreSQL
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -91,7 +91,7 @@ DATABASES = {
         'PORT': config('DB_PORT', default='5432'),
         'CONN_MAX_AGE': 600,
         'OPTIONS': {
-            'charset': 'utf8',
+            'client_encoding': 'UTF8',  # Правильная опция для PostgreSQL
         },
     }
 }
