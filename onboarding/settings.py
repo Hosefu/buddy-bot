@@ -14,17 +14,17 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-development-key-chang
 # Режим отладки
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-# Разрешенные хосты
-ALLOWED_HOSTS = ['*']
+# Разрешенные хосты - исправляем конфликт
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,web').split(',')
 
-# Приложения Django
+# Приложения Django - добавляем все необходимые
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
-    'django.contrib.contenttypes',
+    'django.contrib.contenttypes',  # Обязательно для ContentType
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.staticfiles',   # Обязательно для collectstatic
 ]
 
 # Сторонние приложения
@@ -34,14 +34,14 @@ THIRD_PARTY_APPS = [
     'corsheaders',
     'django_filters',
     'drf_spectacular',
-    'django_celery_beat',
-    'django_celery_results',
+    'django_celery_beat',    # Добавляем для Celery Beat
+    'django_celery_results', # Добавляем для Celery Results
 ]
 
 # Локальные приложения
 LOCAL_APPS = [
     'apps.users',
-    'apps.flows',
+    'apps.flows', 
     'apps.guides',
     'apps.common',
 ]
@@ -80,7 +80,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'onboarding.wsgi.application'
 
-# База данных
+# База данных - исправляем конфигурацию
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -89,11 +89,31 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default='postgres'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': 600,
+        'OPTIONS': {
+            'charset': 'utf8',
+        },
     }
 }
 
 # Кастомная модель пользователя
 AUTH_USER_MODEL = 'users.User'
+
+# Валидация паролей
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
 
 # Интернационализация
 LANGUAGE_CODE = 'ru-ru'
@@ -104,6 +124,9 @@ USE_TZ = True
 # Статические файлы
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # Медиа файлы
 MEDIA_URL = '/media/'
@@ -127,6 +150,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.OrderingFilter',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'EXCEPTION_HANDLER': 'apps.common.exceptions.custom_exception_handler',
 }
 
 # JWT настройки
@@ -139,8 +163,30 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
 }
 
+# DRF Spectacular (документация API)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Telegram Onboarding API',
+    'DESCRIPTION': 'API для системы онбординга новых сотрудников через Telegram Mini App',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
+
 # CORS настройки
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=True, cast=bool)
+CORS_ALLOWED_ORIGINS = [
+    origin.strip() for origin in config('CORS_ALLOWED_ORIGINS', default='').split(',') 
+    if origin.strip()
+]
+
+# Кэширование (Redis)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://redis:6379/1'),
+        'KEY_PREFIX': 'onboarding',
+        'TIMEOUT': 300,
+    }
+}
 
 # Celery настройки
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')
@@ -151,21 +197,99 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
+# Конфигурация очередей Celery
+CELERY_TASK_ROUTES = {
+    # Уведомления Telegram
+    'apps.users.tasks.send_telegram_notification': {'queue': 'notifications'},
+    'apps.flows.tasks.send_flow_*': {'queue': 'notifications'},
+    
+    # Аналитика и отчеты
+    'apps.flows.tasks.generate_*': {'queue': 'analytics'},
+    'apps.guides.tasks.update_*': {'queue': 'analytics'},
+    
+    # Обслуживание системы
+    'apps.*.tasks.cleanup_*': {'queue': 'maintenance'},
+    
+    # Всё остальное в основную очередь
+    '*': {'queue': 'default'}
+}
+
 # Telegram Bot настройки
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_WEBHOOK_URL = config('TELEGRAM_WEBHOOK_URL', default='')
+TELEGRAM_MINI_APP_URL = config('TELEGRAM_MINI_APP_URL', default='')
 
-# Простое логирование
+# Email настройки
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
+
+# Логирование
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'maxBytes': 1024*1024*10,  # 10 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
         },
     },
     'root': {
         'handlers': ['console'],
         'level': 'INFO',
     },
-} 
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+# Безопасность
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    X_FRAME_OPTIONS = 'DENY'
+
+# Создаем необходимые директории
+os.makedirs(BASE_DIR / 'logs', exist_ok=True)
+os.makedirs(BASE_DIR / 'static', exist_ok=True)
+os.makedirs(BASE_DIR / 'media', exist_ok=True)
