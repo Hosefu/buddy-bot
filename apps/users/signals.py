@@ -18,13 +18,13 @@ def user_created_handler(sender, instance, created, **kwargs):
     if created:
         # Назначаем базовую роль "user" всем новым пользователям
         try:
-            user_role, _ = Role.objects.get_or_create(
-                name='user',
-                defaults={
-                    'display_name': 'Пользователь',
-                    'description': 'Базовая роль для всех пользователей'
-                }
-            )
+            user_role = Role.objects.filter(name='user').first()
+            if not user_role:
+                user_role = Role.objects.create(
+                    name='user',
+                    display_name='Пользователь',
+                    description='Базовая роль для всех пользователей'
+                )
             
             UserRole.objects.get_or_create(
                 user=instance,

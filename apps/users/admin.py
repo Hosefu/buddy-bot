@@ -15,7 +15,7 @@ class UserAdmin(BaseUserAdmin):
     Административная панель для пользователей
     """
     list_display = [
-        'email', 'name', 'position', 'department', 
+        'telegram_id', 'name', 'position', 'department', 
         'is_active', 'telegram_link_display', 'roles_display', 
         'last_login_at', 'created_at'
     ]
@@ -23,15 +23,15 @@ class UserAdmin(BaseUserAdmin):
         'is_active', 'is_staff', 'department', 'hire_date',
         'user_roles__role__name', 'created_at'
     ]
-    search_fields = ['email', 'name', 'telegram_username', 'position']
+    search_fields = ['telegram_id', 'name', 'telegram_username', 'position']
     readonly_fields = ['created_at', 'updated_at', 'last_login_at', 'telegram_link']
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('email', 'name', 'password')
+            'fields': ('telegram_id', 'name', 'password')
         }),
         ('Telegram', {
-            'fields': ('telegram_id', 'telegram_username', 'telegram_link')
+            'fields': ('telegram_username', 'telegram_link')
         }),
         ('HR информация', {
             'fields': ('position', 'department', 'hire_date')
@@ -48,7 +48,7 @@ class UserAdmin(BaseUserAdmin):
     add_fieldsets = (
         ('Создание пользователя', {
             'classes': ('wide',),
-            'fields': ('email', 'name', 'password1', 'password2', 'position', 'department')
+            'fields': ('telegram_id', 'name', 'password1', 'password2', 'position', 'department')
         }),
     )
     

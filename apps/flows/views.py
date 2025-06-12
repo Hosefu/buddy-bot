@@ -12,7 +12,9 @@ from django.db.models import Q, Count, Avg
 
 from .models import (
     Flow, FlowStep, Task, Quiz, QuizQuestion, QuizAnswer,
-    UserFlow, FlowBuddy, UserStepProgress, UserQuizAnswer, FlowAction
+    UserFlow, FlowBuddy, UserStepProgress, UserQuizAnswer, FlowAction,
+    TaskSnapshot, QuizSnapshot, QuizQuestionSnapshot, QuizAnswerSnapshot,
+    UserQuizAnswerSnapshot
 )
 from .serializers import (
     FlowSerializer, FlowDetailSerializer, FlowStepSerializer,
@@ -210,48 +212,62 @@ class FlowStepTaskView(APIView):
                 'error': 'Этап не содержит задания'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        serializer = TaskAnswerSerializer(data=request.data)
-        if serializer.is_valid():
-            answer = serializer.validated_data['answer']
-            task = step.task
-            
-            # Проверяем правильность ответа
-            is_correct = task.check_answer(answer)
-            
-            if is_correct:
-                # Обновляем прогресс
-                step_progress = UserStepProgress.objects.get(
-                    user_flow=user_flow,
-                    flow_step=step
-                )
-                step_progress.task_completed_at = timezone.now()
-                step_progress.status = UserStepProgress.StepStatus.COMPLETED
-                step_progress.completed_at = timezone.now()
-                step_progress.save()
-                
-                # Записываем действие
-                FlowAction.objects.create(
-                    user_flow=user_flow,
-                    action_type=FlowAction.ActionType.TASK_COMPLETED,
-                    performed_by=request.user,
-                    metadata={'step_id': step.id, 'step_title': step.title}
-                )
-                
-                # Разблокируем следующий этап
-                self._unlock_next_step(user_flow, step)
-                
-                return Response({
-                    'correct': True,
-                    'message': 'Правильный ответ! Задание выполнено.'
-                })
-            else:
-                return Response({
-                    'correct': False,
-                    'message': 'Неправильный ответ. Попробуйте еще раз.',
-                    'hint': task.hint if task.hint else None
-                })
+        if not hasattr(step, 'task'):
+            return Response({
+                'error': 'Задание не найдено'
+            }, status=status.HTTP_404_NOT_FOUND)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = TaskAnswerSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        answer = serializer.validated_data['answer']
+        task = step.task
+        
+        # Создаем снапшот задания
+        task_snapshot = TaskSnapshot.objects.create(
+            user_progress=user_flow,
+            task_title=task.title,
+            task_description=task.description,
+            task_instruction=task.instruction,
+            task_code_word=task.code_word,
+            task_hint=task.hint,
+            user_answer=answer,
+            is_correct=answer.lower() == task.code_word.lower(),
+            attempts_count=1
+        )
+        
+        # Проверяем ответ
+        is_correct = answer.lower() == task.code_word.lower()
+        
+        # Обновляем прогресс
+        step_progress = UserStepProgress.objects.get(
+            user_flow=user_flow,
+            flow_step=step
+        )
+        
+        if is_correct:
+            step_progress.status = UserStepProgress.StepStatus.COMPLETED
+            step_progress.completed_at = timezone.now()
+            
+            # Записываем действие
+            FlowAction.objects.create(
+                user_flow=user_flow,
+                action_type=FlowAction.ActionType.STEP_COMPLETED,
+                performed_by=request.user,
+                metadata={'step_id': step.id, 'step_title': step.title}
+            )
+            
+            # Разблокируем следующий этап
+            self._unlock_next_step(user_flow, step)
+        
+        step_progress.save()
+        
+        return Response({
+            'is_correct': is_correct,
+            'message': 'Правильно!' if is_correct else 'Неправильно, попробуйте еще раз',
+            'step_progress': UserStepProgressSerializer(step_progress).data
+        })
     
     def get_step(self, flow_id, step_id):
         """Получает этап с проверкой доступности"""
@@ -322,82 +338,159 @@ class QuizQuestionAnswerView(APIView):
     
     def post(self, request, flow_id, step_id, question_id):
         """
-        Отправка ответа на вопрос квиза
+        Сохраняет ответ пользователя на вопрос квиза
         """
-        flow = get_object_or_404(Flow, id=flow_id, is_active=True)
-        step = get_object_or_404(FlowStep, id=step_id, flow=flow, is_active=True)
-        question = get_object_or_404(QuizQuestion, id=question_id, quiz=step.quiz)
-        user_flow = get_object_or_404(UserFlow, user=request.user, flow=flow)
+        step = get_object_or_404(FlowStep, id=step_id, flow_id=flow_id, is_active=True)
+        user_flow = get_object_or_404(UserFlow, id=flow_id, user=request.user)
         
-        serializer = QuizSubmissionSerializer(
-            data=request.data,
-            context={
-                'user_flow': user_flow,
-                'question': question
+        if step.step_type != FlowStep.StepType.QUIZ:
+            return Response({
+                'error': 'Этап не содержит квиза'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not hasattr(step, 'quiz'):
+            return Response({
+                'error': 'Квиз не найден'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        question = get_object_or_404(QuizQuestion, id=question_id, quiz=step.quiz)
+        
+        serializer = QuizSubmissionSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        answer_id = serializer.validated_data['answer_id']
+        answer = get_object_or_404(QuizAnswer, id=answer_id, question=question)
+        
+        # Сохраняем ответ пользователя
+        user_answer, created = UserQuizAnswer.objects.update_or_create(
+            user_flow=user_flow,
+            question=question,
+            defaults={
+                'selected_answer': answer,
+                'is_correct': answer.is_correct,
+                'answered_at': timezone.now()
             }
         )
         
-        if serializer.is_valid():
-            user_answer = serializer.save()
-            
-            # Проверяем, завершен ли квиз
-            self._check_quiz_completion(user_flow, step, question.quiz)
-            
-            return Response({
-                'correct': user_answer.is_correct,
-                'explanation': user_answer.selected_answer.explanation,
-                'message': 'Ответ принят'
-            })
+        # Проверяем завершение квиза
+        is_completed = self._check_quiz_completion(user_flow, step, step.quiz)
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'message': 'Ответ сохранен',
+            'is_correct': answer.is_correct,
+            'is_completed': is_completed
+        })
     
     def _check_quiz_completion(self, user_flow, step, quiz):
-        """Проверяет завершение квиза и обновляет прогресс"""
-        # Подсчитываем ответы пользователя
+        """
+        Проверяет завершение квиза и создает снапшоты
+        """
+        # Получаем все ответы пользователя на вопросы квиза
         user_answers = UserQuizAnswer.objects.filter(
             user_flow=user_flow,
             question__quiz=quiz
         )
         
-        total_questions = quiz.total_questions
-        answered_questions = user_answers.count()
-        correct_answers = user_answers.filter(is_correct=True).count()
+        # Проверяем, что ответил на все вопросы
+        total_questions = quiz.questions.count()
+        if user_answers.count() < total_questions:
+            return False
         
-        # Если ответил на все вопросы
-        if answered_questions >= total_questions:
-            # Проверяем проходной балл
-            is_passed = quiz.is_passing_score(correct_answers)
-            
-            # Обновляем прогресс
-            step_progress = UserStepProgress.objects.get(
-                user_flow=user_flow,
-                flow_step=step
+        # Создаем снапшоты и завершаем квиз
+        is_passed = self.complete_quiz_step(user_flow, step, user_answers)
+        return is_passed
+    
+    def complete_quiz_step(self, user_flow, step, user_quiz_answers):
+        """
+        Завершение этапа с квизом с созданием полного снапшота
+        """
+        quiz = step.quiz
+        
+        # Получаем прогресс по этапу
+        step_progress, created = UserStepProgress.objects.get_or_create(
+            user_flow=user_flow,
+            flow_step=step
+        )
+        
+        # Создаем снапшот квиза
+        quiz_snapshot = QuizSnapshot.objects.create(
+            user_step_progress=step_progress,
+            quiz_title=quiz.title,
+            quiz_description=quiz.description or '',
+            passing_score_percentage=quiz.passing_score_percentage,
+            total_questions=quiz.questions.count(),
+            correct_answers=0,  # Пока 0, пересчитаем ниже
+            score_percentage=0,  # Пока 0, пересчитаем ниже
+            is_passed=False  # Пока False, пересчитаем ниже
+        )
+        
+        correct_count = 0
+        
+        # Создаем снапшоты для каждого вопроса
+        for question in quiz.questions.all().order_by('order'):
+            # Снапшот вопроса
+            question_snapshot = QuizQuestionSnapshot.objects.create(
+                quiz_snapshot=quiz_snapshot,
+                original_question_id=question.id,
+                question_text=question.question,
+                question_order=question.order,
+                explanation=question.explanation or ''
             )
             
-            step_progress.quiz_completed_at = timezone.now()
-            step_progress.quiz_correct_answers = correct_answers
-            step_progress.quiz_total_questions = total_questions
+            # Снапшоты всех вариантов ответов для этого вопроса
+            answer_snapshots = {}
+            for answer in question.answers.all().order_by('order'):
+                answer_snapshot = QuizAnswerSnapshot.objects.create(
+                    question_snapshot=question_snapshot,
+                    original_answer_id=answer.id,
+                    answer_text=answer.answer_text,
+                    is_correct=answer.is_correct,
+                    answer_order=answer.order,
+                    explanation=answer.explanation or ''
+                )
+                answer_snapshots[answer.id] = answer_snapshot
             
-            if is_passed:
-                step_progress.status = UserStepProgress.StepStatus.COMPLETED
-                step_progress.completed_at = timezone.now()
+            # Ищем ответ пользователя на этот вопрос
+            user_answer = user_quiz_answers.filter(question=question).first()
+            if user_answer:
+                selected_answer_snapshot = answer_snapshots[user_answer.selected_answer.id]
                 
-                # Записываем действие
-                FlowAction.objects.create(
-                    user_flow=user_flow,
-                    action_type=FlowAction.ActionType.QUIZ_PASSED,
-                    performed_by=user_flow.user,
-                    metadata={
-                        'step_id': step.id,
-                        'step_title': step.title,
-                        'score': step_progress.quiz_score_percentage
-                    }
+                # Создаем снапшот ответа пользователя
+                UserQuizAnswerSnapshot.objects.create(
+                    quiz_snapshot=quiz_snapshot,
+                    question_snapshot=question_snapshot,
+                    selected_answer_snapshot=selected_answer_snapshot,
+                    is_correct=user_answer.is_correct,
+                    answered_at=user_answer.answered_at
                 )
                 
-                # Разблокируем следующий этап
-                self._unlock_next_step(user_flow, step)
-            
+                if user_answer.is_correct:
+                    correct_count += 1
+        
+        # Обновляем результаты в снапшоте квиза
+        total_questions = quiz.questions.count()
+        score_percentage = (correct_count / total_questions * 100) if total_questions > 0 else 0
+        is_passed = score_percentage >= quiz.passing_score_percentage
+        
+        quiz_snapshot.correct_answers = correct_count
+        quiz_snapshot.score_percentage = int(score_percentage)
+        quiz_snapshot.is_passed = is_passed
+        quiz_snapshot.save()
+        
+        # Обновляем прогресс по этапу
+        if is_passed:
+            step_progress.status = UserStepProgress.StepStatus.COMPLETED
+            step_progress.quiz_completed_at = timezone.now()
+            step_progress.completed_at = timezone.now()
+            step_progress.quiz_correct_answers = correct_count
+            step_progress.quiz_total_questions = total_questions
             step_progress.save()
+            
+            # Разблокируем следующий этап
+            self._unlock_next_step(user_flow, step)
+        
+        return is_passed
     
     def _unlock_next_step(self, user_flow, current_step):
         """Разблокирует следующий этап"""
@@ -452,6 +545,12 @@ class BuddyFlowStartView(generics.CreateAPIView):
     """
     serializer_class = UserFlowStartSerializer
     permission_classes = [IsBuddyOrModerator]
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        flow = get_object_or_404(Flow, id=self.kwargs['pk'], is_active=True)
+        context['flow'] = flow
+        return context
 
 
 class BuddyMyFlowsView(generics.ListAPIView):

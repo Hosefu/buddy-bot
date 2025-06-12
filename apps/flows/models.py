@@ -8,6 +8,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.common.models import BaseModel, ActiveModel, OrderedModel, StatusChoices
 from apps.users.models import User
 from .managers import FlowManager, UserFlowManager
+from .snapshot_models import TaskSnapshot, QuizSnapshot, QuizQuestionSnapshot
 
 
 class Flow(BaseModel, ActiveModel):

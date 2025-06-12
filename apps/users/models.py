@@ -17,8 +17,9 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     # Основные поля пользователя
     email = models.EmailField(
         'Email адрес',
-        unique=True,
-        help_text='Корпоративный email пользователя'
+        null=True,
+        blank=True,
+        help_text='Email пользователя (устаревшее поле)'
     )
     name = models.CharField(
         'Полное имя',
@@ -31,9 +32,7 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         'Telegram ID',
         max_length=50,
         unique=True,
-        null=True,
-        blank=True,
-        help_text='Уникальный ID пользователя в Telegram'
+        help_text='Уникальный ID пользователя в Telegram (основной идентификатор)'
     )
     telegram_username = models.CharField(
         'Telegram username',
@@ -86,7 +85,7 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     objects = UserManager()
     
     # Поля для аутентификации
-    USERNAME_FIELD = 'email'
+    USERNAME_FIELD = 'telegram_id'
     REQUIRED_FIELDS = ['name']
     
     class Meta:
@@ -100,7 +99,7 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         ]
     
     def __str__(self):
-        return f"{self.name} ({self.email})"
+        return f"{self.name} (ID: {self.telegram_id})"
     
     def get_full_name(self):
         """Возвращает полное имя пользователя"""
@@ -108,7 +107,7 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     
     def get_short_name(self):
         """Возвращает краткое имя пользователя"""
-        return self.name.split()[0] if self.name else self.email
+        return self.name.split()[0] if self.name else f"User {self.telegram_id}"
     
     @property
     def telegram_link(self):

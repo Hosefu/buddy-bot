@@ -54,7 +54,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'name', 'telegram_id', 'telegram_username',
+            'id', 'telegram_id', 'name', 'telegram_username',
             'position', 'department', 'hire_date', 'is_active',
             'last_login_at', 'created_at', 'active_roles', 'telegram_link'
         ]
@@ -63,11 +63,18 @@ class UserSerializer(serializers.ModelSerializer):
             'telegram_link'
         ]
     
-    def validate_email(self, value):
-        """Валидация email"""
-        if User.objects.filter(email=value).exclude(id=self.instance.id if self.instance else None).exists():
-            raise serializers.ValidationError("Пользователь с таким email уже существует")
-        return value
+    def validate_telegram_id(self, value):
+        """Валидация Telegram ID"""
+        if not value:
+            raise serializers.ValidationError("Telegram ID обязателен")
+        
+        # Проверяем уникальность
+        if User.objects.filter(telegram_id=value).exclude(
+            id=self.instance.id if self.instance else None
+        ).exists():
+            raise serializers.ValidationError("Пользователь с таким Telegram ID уже существует")
+        
+        return str(value).strip()
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -80,7 +87,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'email', 'name', 'password', 'password_confirm',
+            'telegram_id', 'name', 'password', 'password_confirm',
             'position', 'department', 'hire_date'
         ]
     
@@ -320,15 +327,15 @@ class UserListSerializer(serializers.ModelSerializer):
     Сериализатор для списка пользователей (краткая информация)
     """
     roles = serializers.StringRelatedField(
-        source='get_active_roles', 
-        many=True, 
+        source='get_active_roles',
+        many=True,
         read_only=True
     )
     
     class Meta:
         model = User
         fields = [
-            'id', 'name', 'email', 'position', 'department', 
+            'id', 'name', 'telegram_id', 'position', 'department', 
             'is_active', 'roles', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']

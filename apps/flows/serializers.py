@@ -4,10 +4,15 @@
 from rest_framework import serializers
 from django.utils import timezone
 from django.db import transaction
+from django.db import models
 
 from .models import (
     Flow, FlowStep, Task, Quiz, QuizQuestion, QuizAnswer,
     UserFlow, FlowBuddy, UserStepProgress, UserQuizAnswer, FlowAction
+)
+from .snapshot_models import (
+    TaskSnapshot, QuizSnapshot, QuizQuestionSnapshot,
+    QuizAnswerSnapshot, UserQuizAnswerSnapshot
 )
 from apps.users.serializers import UserListSerializer
 from apps.guides.serializers import ArticleBasicSerializer
@@ -180,6 +185,65 @@ class FlowDetailSerializer(FlowSerializer):
         fields = FlowSerializer.Meta.fields + ['flow_steps']
 
 
+class QuizAnswerSnapshotSerializer(serializers.ModelSerializer):
+    """Сериализатор снапшота ответа"""
+    
+    class Meta:
+        model = QuizAnswerSnapshot
+        fields = [
+            'id', 'answer_text', 'is_correct', 'answer_order', 'explanation'
+        ]
+
+
+class UserQuizAnswerSnapshotSerializer(serializers.ModelSerializer):
+    """Сериализатор ответа пользователя (снапшот)"""
+    selected_answer = QuizAnswerSnapshotSerializer(source='selected_answer_snapshot', read_only=True)
+    
+    class Meta:
+        model = UserQuizAnswerSnapshot
+        fields = [
+            'id', 'selected_answer', 'is_correct', 'answered_at'
+        ]
+
+
+class QuizQuestionSnapshotSerializer(serializers.ModelSerializer):
+    """Сериализатор снапшота вопроса квиза"""
+    answer_options = QuizAnswerSnapshotSerializer(many=True, read_only=True)
+    user_answer = UserQuizAnswerSnapshotSerializer(read_only=True)
+    
+    class Meta:
+        model = QuizQuestionSnapshot
+        fields = [
+            'id', 'question_text', 'question_order', 'explanation',
+            'answer_options', 'user_answer'
+        ]
+
+
+class QuizSnapshotSerializer(serializers.ModelSerializer):
+    """Сериализатор снапшота квиза"""
+    questions = QuizQuestionSnapshotSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = QuizSnapshot
+        fields = [
+            'id', 'quiz_title', 'quiz_description', 'passing_score_percentage',
+            'total_questions', 'correct_answers', 'score_percentage', 'is_passed',
+            'questions', 'created_at'
+        ]
+
+
+class TaskSnapshotSerializer(serializers.ModelSerializer):
+    """Сериализатор снапшота задания"""
+    
+    class Meta:
+        model = TaskSnapshot
+        fields = [
+            'id', 'task_title', 'task_description', 'task_instruction',
+            'task_hint', 'user_answer', 'is_correct', 'attempts_count',
+            'created_at'
+        ]
+
+
 class UserStepProgressSerializer(serializers.ModelSerializer):
     """
     Сериализатор прогресса по этапу
@@ -187,6 +251,8 @@ class UserStepProgressSerializer(serializers.ModelSerializer):
     flow_step = FlowStepSerializer(read_only=True)
     is_accessible = serializers.ReadOnlyField()
     quiz_score_percentage = serializers.ReadOnlyField()
+    task_snapshot = TaskSnapshotSerializer(read_only=True)
+    quiz_snapshot = QuizSnapshotSerializer(read_only=True)
     
     class Meta:
         model = UserStepProgress
@@ -195,6 +261,7 @@ class UserStepProgressSerializer(serializers.ModelSerializer):
             'article_read_at', 'task_completed_at', 'quiz_completed_at',
             'quiz_correct_answers', 'quiz_total_questions', 
             'quiz_score_percentage', 'started_at', 'completed_at',
+            'task_snapshot', 'quiz_snapshot',
             'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -257,10 +324,55 @@ class UserFlowDetailSerializer(UserFlowSerializer):
     """
     Подробный сериализатор прохождения потока с прогрессом по этапам
     """
-    step_progress = UserStepProgressSerializer(many=True, read_only=True)
+    step_progress = serializers.SerializerMethodField()
     
     class Meta(UserFlowSerializer.Meta):
         fields = UserFlowSerializer.Meta.fields + ['step_progress']
+    
+    def get_step_progress(self, obj):
+        """
+        Возвращает прогресс по этапам с учетом прав пользователя
+        """
+        request = self.context.get('request')
+        if not request:
+            return []
+        
+        user = request.user
+        
+        # Для модераторов и бадди - показываем все этапы
+        if user.has_role('moderator') or (
+            user.has_role('buddy') and 
+            obj.flow_buddies.filter(buddy_user=user, is_active=True).exists()
+        ):
+            step_progress = obj.step_progress.all().order_by('flow_step__order')
+            return UserStepProgressSerializer(step_progress, many=True, context=self.context).data
+        
+        # Для обычного пользователя - только доступные и завершенные этапы
+        if user == obj.user:
+            step_progress = obj.step_progress.filter(
+                models.Q(status__in=['completed', 'in_progress']) |
+                models.Q(flow_step__order=obj.current_step.order if obj.current_step else 1)
+            ).order_by('flow_step__order')
+            
+            serialized_steps = []
+            for progress in step_progress:
+                step_data = UserStepProgressSerializer(progress, context=self.context).data
+                
+                # Для будущих этапов показываем только заголовок
+                if progress.status == 'locked':
+                    step_data = {
+                        'id': step_data['id'],
+                        'flow_step_title': step_data.get('flow_step_title'),
+                        'status': 'locked',
+                        'order': step_data.get('order')
+                    }
+                
+                serialized_steps.append(step_data)
+            
+            return serialized_steps
+        
+        # Для остальных - доступ запрещен
+        return []
 
 
 class UserFlowStartSerializer(serializers.Serializer):
@@ -268,7 +380,6 @@ class UserFlowStartSerializer(serializers.Serializer):
     Сериализатор для запуска потока пользователем
     """
     user_id = serializers.IntegerField()
-    flow_id = serializers.IntegerField()
     expected_completion_date = serializers.DateField(required=False)
     additional_buddies = serializers.ListField(
         child=serializers.IntegerField(),
@@ -284,14 +395,6 @@ class UserFlowStartSerializer(serializers.Serializer):
             return user
         except User.DoesNotExist:
             raise serializers.ValidationError("Пользователь не найден")
-    
-    def validate_flow_id(self, value):
-        """Валидация потока"""
-        try:
-            flow = Flow.objects.get(id=value, is_active=True)
-            return flow
-        except Flow.DoesNotExist:
-            raise serializers.ValidationError("Поток не найден")
     
     def validate_additional_buddies(self, value):
         """Валидация дополнительных бадди"""
@@ -314,7 +417,7 @@ class UserFlowStartSerializer(serializers.Serializer):
     def validate(self, data):
         """Валидация запуска потока"""
         user = data['user_id']
-        flow = data['flow_id']
+        flow = self.context['flow']
         
         # Проверяем, не запущен ли уже поток для пользователя
         if UserFlow.objects.filter(user=user, flow=flow).exists():
@@ -328,7 +431,7 @@ class UserFlowStartSerializer(serializers.Serializer):
     def create(self, validated_data):
         """Запуск потока для пользователя"""
         user = validated_data['user_id']
-        flow = validated_data['flow_id']
+        flow = self.context['flow']
         buddy = self.context['request'].user
         additional_buddies = validated_data.get('additional_buddies', [])
         

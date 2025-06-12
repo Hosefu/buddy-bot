@@ -74,18 +74,15 @@ class TelegramAuthView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class CurrentUserView(APIView):
+class CurrentUserView(generics.RetrieveUpdateAPIView):
     """
-    Получение информации о текущем пользователе
+    Получение и обновление информации о текущем пользователе
     """
+    serializer_class = UserSerializer
     permission_classes = [IsActiveUser]
     
-    def get(self, request):
-        """
-        Возвращает информацию о текущем авторизованном пользователе
-        """
-        serializer = UserSerializer(request.user)
-        return Response(serializer.data)
+    def get_object(self):
+        return self.request.user
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
@@ -159,12 +156,13 @@ class UserListView(generics.ListCreateAPIView):
                 user_roles__is_active=True
             ).distinct()
         
-        # Поиск по имени или email
+        # Поиск по имени или telegram_id
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(
                 models.Q(name__icontains=search) |
-                models.Q(email__icontains=search)
+                models.Q(telegram_id__icontains=search) |
+                models.Q(telegram_username__icontains=search)
             )
         
         return queryset
