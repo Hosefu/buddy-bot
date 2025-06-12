@@ -55,6 +55,19 @@ class Command(BaseCommand):
         if created_demo:
             self.stdout.write(f'✅ Пользователь user@example.com / user123')
 
+        # Moderator user
+        moderator_user, created_moderator = User.objects.get_or_create(
+            email='moderator@example.com',
+            defaults={'name': 'Moderator User'}
+        )
+        if created_moderator:
+            moderator_user.set_password('moderator123')
+            moderator_user.save()
+            created += 1
+        UserRole.objects.get_or_create(user=moderator_user, role=roles.get('moderator'))
+        if created_moderator:
+            self.stdout.write(f'✅ Пользователь moderator@example.com / moderator123')
+
         self.stdout.write(f'📊 Создано пользователей: {created}')
 
     def create_demo_flow(self):
@@ -125,7 +138,7 @@ class Command(BaseCommand):
             {
                 'title': 'Файлообмен и поиски «последняя_версия_финал_v3(копия)_правки»',
                 'description': 'Google Drive и Notion — это цифровой шкаф с миллионом ящиков.',
-                'instruction': 'В Notion-доке “Инструкция по загрузке макетов” найди сноску с надписью “P.S. Мы вас предупредили”. Рядом будет кодовое слово.',
+                'instruction': 'В Notion-доке "Инструкция по загрузке макетов" найди сноску с надписью "P.S. Мы вас предупредили". Рядом будет кодовое слово.',
                 'code_word': 'референс',
                 'quiz': [
                     {
