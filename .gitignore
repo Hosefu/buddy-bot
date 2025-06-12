@@ -1,1 +1,15 @@
 .DS_Store
+
+# Django
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
+staticfiles/
+media/
+logs/

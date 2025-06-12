@@ -1,69 +1,76 @@
 #!/bin/bash
 
+# Цвета для вывода
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 # Функции для логирования
 log() {
-    echo -e "\033[0;34m[INFO]\033[0m $1"
+    echo -e "${BLUE}[INFO]${NC} $1"
 }
 
 log_success() {
-    echo -e "\033[0;32m[SUCCESS]\033[0m $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
 log_warning() {
-    echo -e "\033[0;33m[WARNING]\033[0m $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
 log_error() {
-    echo -e "\033[0;31m[ERROR]\033[0m $1"
+    echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Создание структуры management команд
-create_management_structure() {
-    # Создаем пути если они не существуют
-    mkdir -p apps/common/management/commands
+# Проверка наличия важных зависимостей
+check_dependencies() {
+    command -v nc >/dev/null 2>&1 || { 
+        log_warning "netcat не найден, пропускаем проверку сетевых сервисов"
+        return 1
+    }
+    return 0
+}
+
+# Ожидание доступности PostgreSQL
+wait_for_postgres() {
+    if ! check_dependencies; then
+        return
+    fi
+
+    log "Ожидание доступности PostgreSQL..."
+    local attempt=0
+    local max_attempts=30
     
-    # Создаем пустые файлы __init__.py для корректной структуры пакета
-    touch apps/common/__init__.py
-    touch apps/common/management/__init__.py
-    touch apps/common/management/commands/__init__.py
+    while ! nc -z $DB_HOST $DB_PORT; do
+        attempt=$((attempt + 1))
+        if [ $attempt -eq $max_attempts ]; then
+            log_warning "База данных недоступна, но продолжаем запуск"
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
+    
+    if [ $attempt -lt $max_attempts ]; then
+        log_success "PostgreSQL готов к работе!"
+    fi
+    
+    # Небольшая пауза для стабилизации
+    sleep 2
 }
 
-# Начало
-log "Начало инициализации..."
-
-# Проверка подключения к PostgreSQL
-log "Ожидание доступности PostgreSQL..."
-attempt=0
-while ! nc -z $DB_HOST $DB_PORT; do
-    attempt=$((attempt + 1))
-    if [ $attempt -eq 30 ]; then
-        log_warning "База данных недоступна, но продолжаем запуск"
-        break
+# Ожидание доступности Redis
+wait_for_redis() {
+    if [ -z "$REDIS_URL" ]; then
+        return
     fi
-    echo -n "."
-    sleep 1
-done
-
-# Дополнительная проверка через psql
-log "Проверка подключения к базе данных..."
-attempt=0
-while ! PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USER -d $DB_NAME -c "SELECT 1;" > /dev/null 2>&1; do
-    attempt=$((attempt + 1))
-    if [ $attempt -eq 15 ]; then
-        log_warning "Не удалось подключиться к базе, но продолжаем (возможно база будет создана)"
-        break
+    
+    if ! check_dependencies; then
+        return
     fi
-    echo -n "."
-    sleep 2
-done
-
-log_success "PostgreSQL готов к работе!"
-
-# Ждем дополнительное время для стабилизации
-sleep 3
-
-# Проверяем доступность Redis (если используется)
-if [ -n "$REDIS_URL" ]; then
+    
     log "Проверка доступности Redis..."
     
     # Извлекаем хост и порт из Redis URL
@@ -71,10 +78,12 @@ if [ -n "$REDIS_URL" ]; then
     REDIS_PORT=$(echo $REDIS_URL | sed 's/redis:\/\///g' | cut -d':' -f2 | cut -d'/' -f1)
     
     if [ -n "$REDIS_HOST" ] && [ -n "$REDIS_PORT" ]; then
-        attempt=0
+        local attempt=0
+        local max_attempts=15
+        
         while ! nc -z $REDIS_HOST $REDIS_PORT; do
             attempt=$((attempt + 1))
-            if [ $attempt -eq 15 ]; then
+            if [ $attempt -eq $max_attempts ]; then
                 log_warning "Redis недоступен, но продолжаем запуск"
                 break
             fi
@@ -82,91 +91,77 @@ if [ -n "$REDIS_URL" ]; then
             sleep 1
         done
         
-        if [ $attempt -lt 15 ]; then
+        if [ $attempt -lt $max_attempts ]; then
             log_success "Redis готов к работе!"
         fi
     fi
-fi
+}
+
+# Запуск Django веб-сервера
+run_web_server() {
+    log "Запуск Django веб-сервера..."
+    
+    # Определяем режим (разработка/продакшн)
+    if [ "$DEBUG" = "True" ]; then
+        python manage.py runserver 0.0.0.0:8000
+    else
+        gunicorn onboarding.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120 --access-logfile - --error-logfile -
+    fi
+}
+
+# Запуск Celery worker
+run_celery_worker() {
+    log "Запуск Celery worker..."
+    celery -A onboarding worker --loglevel=info
+}
+
+# Запуск Celery beat
+run_celery_beat() {
+    log "Запуск Celery beat..."
+    celery -A onboarding beat --loglevel=info
+}
+
+# Запуск установки системы
+run_system_setup() {
+    log "Запуск установки системы..."
+    python setup.py install
+}
+
+# Основная логика entrypoint
+log "==================================================================="
+log "                  ЗАПУСК СИСТЕМЫ ОНБОРДИНГА                        "
+log "==================================================================="
+
+# Ожидание сервисов
+wait_for_postgres
+wait_for_redis
 
 # Определяем, что запускаем
 SERVICE_TYPE=${1:-"web"}
 
-# Если это первый запуск web сервиса или явная установка
-if [ "$SERVICE_TYPE" = "web" ] || [ "$SERVICE_TYPE" = "install" ]; then
-    log "Запуск установки системы..."
-    
-    # Создаем структуру management команд
-    create_management_structure
-    
-    # Применяем миграции
-    log "Применение миграций базы данных..."
-    if python manage.py migrate --noinput; then
-        log_success "Миграции применены успешно"
-    else
-        log_error "Ошибка применения миграций"
-        exit 1
-    fi
-    
-    # Собираем статические файлы
-    log "Сбор статических файлов..."
-    if python manage.py collectstatic --noinput --clear; then
-        log_success "Статические файлы собраны"
-    else
-        log_warning "Ошибка сбора статических файлов (продолжаем)"
-    fi
-    
-    # Настройка системы
-    log "Настройка системы (роли, суперпользователь, Celery Beat)..."
-    if python manage.py setup_system; then
-        log_success "Система настроена успешно"
-    else
-        log_warning "Ошибка настройки системы (продолжаем)"
-    fi
-    
-    # Проверка переменной окружения для загрузки демо-данных
-    if [ "$LOAD_DEMO_DATA" = "true" ]; then
-        log "Загрузка демонстрационных данных..."
-        if python manage.py load_demo_data; then
-            log_success "Демонстрационные данные загружены успешно"
-        else
-            log_warning "Ошибка загрузки демонстрационных данных (продолжаем)"
-        fi
-    fi
-    
-    # Если это была команда install, завершаем
-    if [ "$SERVICE_TYPE" = "install" ]; then
-        log_success "Установка завершена. Система готова к работе."
-        exit 0
-    fi
-fi
-
-log "Инициализация завершена."
-
-# Запуск сервиса в зависимости от SERVICE_TYPE
 case "$SERVICE_TYPE" in
-    web)
-        log "Запуск веб-сервера..."
-        exec python manage.py runserver 0.0.0.0:8000
+    "web")
+        # Для веб-сервиса выполняем установку и запускаем сервер
+        run_system_setup
+        run_web_server
         ;;
-    celery-worker)
-        log "Запуск Celery Worker..."
-        exec celery -A onboarding worker --loglevel=info --concurrency=2
+    "install")
+        # Только установка
+        run_system_setup
         ;;
-    celery-beat)
-        log "Запуск Celery Beat..."
-        exec celery -A onboarding beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    "celery-worker")
+        # Запуск Celery worker
+        run_celery_worker
         ;;
-    # Добавлены совместимые имена без дефиса для обратной совместимости
-    worker)
-        log "Запуск Celery Worker..."
-        exec celery -A onboarding worker --loglevel=info --concurrency=2
-        ;;
-    beat)
-        log "Запуск Celery Beat..."
-        exec celery -A onboarding beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    "celery-beat")
+        # Запуск Celery beat
+        run_celery_beat
         ;;
     *)
-        log "Запуск пользовательской команды: $@"
+        # Для неизвестных команд просто пытаемся выполнить
+        log "Выполнение неизвестной команды: $SERVICE_TYPE"
         exec "$@"
         ;;
 esac
+
+log "Завершение работы"
