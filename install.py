@@ -131,6 +131,7 @@ def main():
         (lambda: run_django_command(['collectstatic', '--noinput'], "Сбор статических файлов"), None),
         (lambda: run_django_command(['setup_system'], "Настройка системы"), None),
         (lambda: run_django_command(['load_demo_data'], "Загрузка демо-данных"), None),
+        (lambda: run_django_command(['generate_tokens'], "Генерация токенов"), None),
     ]
     
     failed_steps = []
