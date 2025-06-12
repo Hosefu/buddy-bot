@@ -1,5 +1,5 @@
 """
-РћСЃРЅРѕРІРЅР°СЏ РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ URL-РѕРІ РїСЂРѕРµРєС‚Р°
+ЋсновнаЯ конфигурациЯ URL-ов проекта
 """
 from django.contrib import admin
 from django.urls import path, include
@@ -8,41 +8,41 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
-    # РђРґРјРёРЅРєР° Django
+    # Ђдминка Django
     path('django-admin/', admin.site.urls),
     
-    # API РґРѕРєСѓРјРµРЅС‚Р°С†РёСЏ
+    # API документациЯ
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     
-    # API СЌРЅРґРїРѕРёРЅС‚С‹
+    # API эндпоинты
     path('api/', include([
-        # РђРІС‚РѕСЂРёР·Р°С†РёСЏ Рё РїРѕР»СЊР·РѕРІР°С‚РµР»Рё
+        # ЂвторизациЯ и пользователи
         path('auth/', include('apps.users.urls')),
         
-        # РњРѕРё РґР°РЅРЅС‹Рµ Рё РїСЂРѕРіСЂРµСЃСЃ (РґР»СЏ РѕР±С‹С‡РЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№)
-        path('my/', include('apps.flows.user_urls')),
+        # Њои данные и прогресс (длЯ обычных пользователей)
+        path('my/', include('apps.flows.urls')),
         
-        # Buddy С„СѓРЅРєС†РёРѕРЅР°Р»
+        # Buddy функционал
         path('buddy/', include('apps.flows.buddy_urls')),
         
-        # РђРґРјРёРЅРёСЃС‚СЂР°С‚РёРІРЅС‹Рµ С„СѓРЅРєС†РёРё
+        # Ђдминистративные функции
         path('admin/', include('apps.flows.admin_urls')),
         
-        # РћР±С‰РµРґРѕСЃС‚СѓРїРЅС‹Рµ С„Р»РѕСѓ Рё РєРѕРЅС‚РµРЅС‚
+        # Ћбщедоступные флоу и контент
         path('flows/', include('apps.flows.public_urls')),
         
-        # РЎС‚Р°С‚СЊРё Рё РіР°Р№РґС‹
+        # ‘татьи и гайды
         path('articles/', include('apps.guides.urls')),
     ])),
 ]
 
-# Р”РѕР±Р°РІР»СЏРµРј СЃС‚Р°С‚РёС‡РµСЃРєРёРµ Рё РјРµРґРёР° С„Р°Р№Р»С‹ РІ СЂРµР¶РёРјРµ СЂР°Р·СЂР°Р±РѕС‚РєРё
+# „обавлЯем статические и медиа файлы в режиме разработки
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 
-# РќР°СЃС‚СЂРѕР№РєР° Р·Р°РіРѕР»РѕРІРєРѕРІ РґР»СЏ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РёРІРЅРѕР№ РїР°РЅРµР»Рё
+# Ќастройка заголовков длЯ административной панели
 admin.site.site_header = "Telegram Onboarding Admin"
 admin.site.site_title = "Telegram Onboarding"
-admin.site.index_title = "РЈРїСЂР°РІР»РµРЅРёРµ СЃРёСЃС‚РµРјРѕР№ РѕРЅР±РѕСЂРґРёРЅРіР°"
+admin.site.index_title = "“правление системой онбординга"
