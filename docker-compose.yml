@@ -1,13 +1,9 @@
-version: '3.8'
-
 # Общие настройки для всех сервисов
 x-app-common: &app-common
   build: 
     context: .
     dockerfile: Dockerfile
   restart: unless-stopped
-  networks:
-    - app-network
   volumes:
     - .:/app
     - logs_volume:/app/logs
@@ -68,21 +64,65 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    networks:
-      - app-network
 
-  # Redis для кеширования и Celery
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+  # Django приложение
+  web:
+    <<: *app-common
     volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - logs_volume:/app/logs
+    ports:
+      - "8000:8000"
+    environment: 
+      <<: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["web"]
+
+  # Celery worker для фоновых задач
+  celery-worker:
+    <<: *app-common
+    environment:
+      <<: *app-environment
+    depends_on:
+      - web
+      - redis
+    command: ["celery-worker"]
+
+  # Celery beat (планировщик задач)
+  celery-beat:
+    <<: *app-common
+    environment:
+      <<: *app-environment
+    depends_on:
+      - web
+      - redis
+    command: ["celery-beat"]
+
+  # Nginx (для production)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_volume:/static:ro
+      - media_volume:/media:ro
+    depends_on:
+      - web
     restart: unless-stopped
-    networks:
-      - app
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+  logs_volume:
