@@ -13,9 +13,9 @@ from django.db.models import Q, Count, Avg
 from .models import (
     Flow, FlowStep, Task, Quiz, QuizQuestion, QuizAnswer,
     UserFlow, FlowBuddy, UserStepProgress, UserQuizAnswer, FlowAction,
-    TaskSnapshot, QuizSnapshot, QuizQuestionSnapshot, QuizAnswerSnapshot,
-    UserQuizAnswerSnapshot
+    TaskSnapshot, QuizSnapshot, QuizQuestionSnapshot
 )
+from .snapshot_models import QuizAnswerSnapshot, UserQuizAnswerSnapshot
 from .serializers import (
     FlowSerializer, FlowDetailSerializer, FlowStepSerializer,
     TaskSerializer, TaskAnswerSerializer, QuizSerializer,

@@ -11,6 +11,6 @@ from apps.flows.views import (
 urlpatterns = [
     # Список и прогресс
     path('flows/', MyFlowListView.as_view(), name='my-flows'),
-    path('progress/', MyFlowListView.as_view(), name='my-progress'),  # Ошибка
+    path('progress/', MyFlowProgressView.as_view(), name='my-progress'),
     path('progress/<int:pk>/', MyFlowProgressView.as_view(), name='my-flow-progress'),
-]
+] 

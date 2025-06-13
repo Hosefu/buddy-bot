@@ -28,47 +28,40 @@ class Command(BaseCommand):
         User = get_user_model()
         roles = {r.name: r for r in Role.objects.all()}
 
-        created = 0
-        # Buddy user
-        buddy_user, created_buddy = User.objects.get_or_create(
-            email='buddy@example.com',
-            defaults={'name': 'Buddy User'}
-        )
-        if created_buddy:
-            buddy_user.set_password('buddy123')
-            buddy_user.save()
-            created += 1
-        UserRole.objects.get_or_create(user=buddy_user, role=roles.get('buddy'))
-        if created_buddy:
-            self.stdout.write(f'✅ Пользователь buddy@example.com / buddy123')
+        # Используем email как основу для telegram_id, чтобы обеспечить уникальность
+        users_data = [
+            {'email': 'buddy@example.com', 'name': 'Buddy User', 'password': 'buddy123', 'role': 'buddy'},
+            {'email': 'user@example.com', 'name': 'Demo User', 'password': 'user123', 'role': 'user'},
+            {'email': 'moderator@example.com', 'name': 'Moderator User', 'password': 'moderator123', 'role': 'moderator'},
+        ]
 
-        # Regular demo user
-        demo_user, created_demo = User.objects.get_or_create(
-            email='user@example.com',
-            defaults={'name': 'Demo User'}
-        )
-        if created_demo:
-            demo_user.set_password('user123')
-            demo_user.save()
-            created += 1
-        UserRole.objects.get_or_create(user=demo_user, role=roles.get('user'))
-        if created_demo:
-            self.stdout.write(f'✅ Пользователь user@example.com / user123')
+        created_count = 0
+        for user_data in users_data:
+            # Генерируем telegram_id из email, чтобы избежать дубликатов
+            telegram_id = f"demo_{user_data['email'].split('@')[0]}"
+            
+            user, created = User.objects.get_or_create(
+                telegram_id=telegram_id,
+                defaults={
+                    'email': user_data['email'],
+                    'name': user_data['name'],
+                }
+            )
 
-        # Moderator user
-        moderator_user, created_moderator = User.objects.get_or_create(
-            email='moderator@example.com',
-            defaults={'name': 'Moderator User'}
-        )
-        if created_moderator:
-            moderator_user.set_password('moderator123')
-            moderator_user.save()
-            created += 1
-        UserRole.objects.get_or_create(user=moderator_user, role=roles.get('moderator'))
-        if created_moderator:
-            self.stdout.write(f'✅ Пользователь moderator@example.com / moderator123')
+            if created:
+                user.set_password(user_data['password'])
+                user.save()
+                created_count += 1
+                self.stdout.write(f"✅ Пользователь {user.name} ({user.email}) создан.")
 
-        self.stdout.write(f'📊 Создано пользователей: {created}')
+            # Назначаем роль
+            role_name = user_data['role']
+            if role_name in roles:
+                UserRole.objects.get_or_create(user=user, role=roles[role_name])
+            else:
+                self.stdout.write(self.style.WARNING(f"Роль '{role_name}' не найдена."))
+
+        self.stdout.write(f'📊 Создано пользователей: {created_count}')
 
     def create_demo_flow(self):
         flow, created = Flow.objects.get_or_create(
