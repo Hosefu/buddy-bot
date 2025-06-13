@@ -1,16 +1,16 @@
 """
-URL длЯ обычных пользователей (/api/my/)
+URL РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРёС… СЌРЅРґРїРѕРёРЅС‚РѕРІ (/api/my/)
 """
 from django.urls import path
 from apps.flows.views import (
     MyFlowListView, MyFlowProgressView
 )
 
-# Ќе указываем app_name, т.к. он уже указан в родительском urls.py
+# РќРµ РёСЃРїРѕР»СЊР·СѓРµРј app_name, С‚.Рє. СЌС‚Рѕ РІР»РѕР¶РµРЅРЅС‹Р№ urls.py
 
 urlpatterns = [
-    # Њои потоки и прогресс
+    # РЎРїРёСЃРѕРє Рё РїСЂРѕРіСЂРµСЃСЃ
     path('flows/', MyFlowListView.as_view(), name='my-flows'),
-    path('progress/', MyFlowListView.as_view(), name='my-progress'),  # Ђлиас
+    path('progress/', MyFlowListView.as_view(), name='my-progress'),  # РћС€РёР±РєР°
     path('progress/<int:pk>/', MyFlowProgressView.as_view(), name='my-flow-progress'),
 ]
