@@ -8,7 +8,9 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.utils import timezone
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, Case, When, Value, FloatField
+from django.db.models.functions import Cast
+from rest_framework.exceptions import PermissionDenied
 
 from .models import (
     Flow, FlowStep, Task, Quiz, QuizQuestion, QuizAnswer,
@@ -40,18 +42,67 @@ class MyFlowListView(generics.ListAPIView):
     
     def get_queryset(self):
         """Возвращает потоки текущего пользователя"""
-        return UserFlow.objects.for_user(self.request.user).select_related('flow')
+        return UserFlow.objects.for_user(self.request.user).select_related('flow').order_by('-created_at')
 
 
-class MyFlowProgressView(generics.RetrieveAPIView):
+class MyFlowProgressView(APIView):
     """
-    Мой прогресс по конкретному потоку
+    Мой прогресс.
+    - GET /api/my/progress/ - Агрегированный прогресс по всем потокам.
+    - GET /api/my/progress/{flow_id}/ - Детальный прогресс по одному потоку.
     """
-    serializer_class = UserFlowDetailSerializer
     permission_classes = [IsActiveUser]
-    
-    def get_queryset(self):
-        return UserFlow.objects.for_user(self.request.user)
+
+    def get(self, request, *args, **kwargs):
+        flow_id = kwargs.get('pk')
+        user = request.user
+
+        if flow_id:
+            # Детальный прогресс по одному потоку
+            user_flow = get_object_or_404(UserFlow, flow_id=flow_id, user=user)
+            serializer = UserFlowDetailSerializer(user_flow, context={'request': request})
+            return Response(serializer.data)
+        else:
+            # Агрегированный прогресс по всем потокам
+            user_flows = UserFlow.objects.for_user(user)
+            if not user_flows.exists():
+                return Response({
+                    "total_flows": 0,
+                    "completed_flows": 0,
+                    "in_progress_flows": 0,
+                    "average_progress": 0
+                })
+            
+            # Аннотируем каждый UserFlow вычисленным прогрессом
+            annotated_flows = user_flows.annotate(
+                completed_steps_count=Count(
+                    'step_progress', 
+                    filter=Q(step_progress__status=UserStepProgress.StepStatus.COMPLETED)
+                ),
+                total_steps_count=Count('flow__flow_steps', filter=Q(flow__flow_steps__is_active=True))
+            ).annotate(
+                progress=Case(
+                    When(total_steps_count=0, then=Value(100.0)),
+                    default=(
+                        Cast('completed_steps_count', FloatField()) * 100.0 / 
+                        Cast('total_steps_count', FloatField())
+                    ),
+                    output_field=FloatField()
+                )
+            )
+
+            aggregation = annotated_flows.aggregate(
+                total_flows=Count('id'),
+                completed_flows=Count('id', filter=Q(status=UserFlow.FlowStatus.COMPLETED)),
+                average_progress=Avg('progress')
+            )
+            
+            return Response({
+                "total_flows": aggregation['total_flows'],
+                "completed_flows": aggregation['completed_flows'],
+                "in_progress_flows": aggregation['total_flows'] - aggregation['completed_flows'],
+                "average_progress": round(aggregation['average_progress'] or 0, 2)
+            })
 
 
 # ========== Публичные представления для потоков ==========
@@ -119,7 +170,7 @@ class FlowStepReadView(APIView):
                 }, status=status.HTTP_403_FORBIDDEN)
             
             # Отмечаем как начатый, если еще не начат
-            if step_progress.status == UserStepProgress.StepStatus.NOT_STARTED:
+            if step_progress.status == UserStepProgress.StepStatus.AVAILABLE:
                 step_progress.status = UserStepProgress.StepStatus.IN_PROGRESS
                 step_progress.started_at = timezone.now()
             
@@ -167,11 +218,11 @@ class FlowStepReadView(APIView):
             next_progress, created = UserStepProgress.objects.get_or_create(
                 user_flow=user_flow,
                 flow_step=next_step,
-                defaults={'status': UserStepProgress.StepStatus.NOT_STARTED}
+                defaults={'status': UserStepProgress.StepStatus.AVAILABLE}
             )
             
             if next_progress.status == UserStepProgress.StepStatus.LOCKED:
-                next_progress.status = UserStepProgress.StepStatus.NOT_STARTED
+                next_progress.status = UserStepProgress.StepStatus.AVAILABLE
                 next_progress.save()
 
 
@@ -291,11 +342,11 @@ class FlowStepTaskView(APIView):
             next_progress, created = UserStepProgress.objects.get_or_create(
                 user_flow=user_flow,
                 flow_step=next_step,
-                defaults={'status': UserStepProgress.StepStatus.NOT_STARTED}
+                defaults={'status': UserStepProgress.StepStatus.AVAILABLE}
             )
             
             if next_progress.status == UserStepProgress.StepStatus.LOCKED:
-                next_progress.status = UserStepProgress.StepStatus.NOT_STARTED
+                next_progress.status = UserStepProgress.StepStatus.AVAILABLE
                 next_progress.save()
 
 
@@ -341,7 +392,7 @@ class QuizQuestionAnswerView(APIView):
         Сохраняет ответ пользователя на вопрос квиза
         """
         step = get_object_or_404(FlowStep, id=step_id, flow_id=flow_id, is_active=True)
-        user_flow = get_object_or_404(UserFlow, id=flow_id, user=request.user)
+        user_flow = get_object_or_404(UserFlow, flow_id=flow_id, user=request.user)
         
         if step.step_type != FlowStep.StepType.QUIZ:
             return Response({
@@ -479,17 +530,18 @@ class QuizQuestionAnswerView(APIView):
         quiz_snapshot.save()
         
         # Обновляем прогресс по этапу
+        step_progress.quiz_completed_at = timezone.now()
+        step_progress.quiz_correct_answers = correct_count
+        step_progress.quiz_total_questions = total_questions
+        
         if is_passed:
             step_progress.status = UserStepProgress.StepStatus.COMPLETED
-            step_progress.quiz_completed_at = timezone.now()
-            step_progress.completed_at = timezone.now()
-            step_progress.quiz_correct_answers = correct_count
-            step_progress.quiz_total_questions = total_questions
-            step_progress.save()
+            step_progress.completed_at = step_progress.quiz_completed_at
             
             # Разблокируем следующий этап
             self._unlock_next_step(user_flow, step)
         
+        step_progress.save()
         return is_passed
     
     def _unlock_next_step(self, user_flow, current_step):
@@ -504,11 +556,11 @@ class QuizQuestionAnswerView(APIView):
             next_progress, created = UserStepProgress.objects.get_or_create(
                 user_flow=user_flow,
                 flow_step=next_step,
-                defaults={'status': UserStepProgress.StepStatus.NOT_STARTED}
+                defaults={'status': UserStepProgress.StepStatus.AVAILABLE}
             )
             
             if next_progress.status == UserStepProgress.StepStatus.LOCKED:
-                next_progress.status = UserStepProgress.StepStatus.NOT_STARTED
+                next_progress.status = UserStepProgress.StepStatus.AVAILABLE
                 next_progress.save()
 
 
@@ -545,12 +597,27 @@ class BuddyFlowStartView(generics.CreateAPIView):
     """
     serializer_class = UserFlowStartSerializer
     permission_classes = [IsBuddyOrModerator]
-    
+
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        flow = get_object_or_404(Flow, id=self.kwargs['pk'], is_active=True)
-        context['flow'] = flow
+        context['flow'] = get_object_or_404(Flow, pk=self.kwargs['pk'])
         return context
+
+    def create(self, request, *args, **kwargs):
+        flow = get_object_or_404(Flow, pk=self.kwargs['pk'])
+        user_id = request.data.get('user_id')
+
+        # Проверяем, не запущен ли уже поток для этого пользователя
+        if UserFlow.objects.filter(
+            user_id=user_id,
+            flow=flow,
+            status__in=[UserFlow.FlowStatus.IN_PROGRESS, UserFlow.FlowStatus.PAUSED]
+        ).exists():
+            return Response(
+                {'error': 'Для этого пользователя уже запущен этот поток.'},
+                status=status.HTTP_409_CONFLICT
+            )
+        return super().create(request, *args, **kwargs)
 
 
 class BuddyMyFlowsView(generics.ListAPIView):
@@ -561,22 +628,39 @@ class BuddyMyFlowsView(generics.ListAPIView):
     permission_classes = [IsBuddyOrModerator]
     
     def get_queryset(self):
-        return UserFlow.objects.for_buddy(self.request.user).select_related(
-            'user', 'flow', 'current_step'
-        )
+        """Возвращает потоки, где текущий пользователь является бадди"""
+        user = self.request.user
+        return UserFlow.objects.filter(flow_buddies__buddy_user=user, flow_buddies__is_active=True)
 
 
-class BuddyFlowDetailView(generics.RetrieveAPIView):
+class BuddyFlowManageView(generics.RetrieveDestroyAPIView):
     """
-    Детальный прогресс подопечного
+    Просмотр и удаление (остановка) потока подопечного.
+    Обрабатывает GET для получения деталей и DELETE для удаления.
     """
     serializer_class = UserFlowDetailSerializer
-    permission_classes = [IsBuddyOrModerator, CanViewUserProgress]
-    
+    permission_classes = [IsBuddyOrModerator, CanManageFlow]
+    lookup_url_kwarg = 'pk'
+
     def get_queryset(self):
-        if self.request.user.has_role('moderator'):
-            return UserFlow.objects.active()
-        return UserFlow.objects.for_buddy(self.request.user)
+        """Доступ только к потокам, где пользователь является бадди."""
+        user = self.request.user
+        return UserFlow.objects.filter(
+            flow_buddies__buddy_user=user,
+            flow_buddies__is_active=True
+        ).distinct()
+    
+    def perform_destroy(self, instance):
+        """
+        При удалении создается запись в истории.
+        """
+        FlowAction.objects.create(
+            user_flow=instance,
+            action_type=FlowAction.ActionType.DELETED,
+            performed_by=self.request.user,
+            reason="Flow deleted by buddy."
+        )
+        instance.delete()
 
 
 class BuddyFlowPauseView(APIView):
@@ -584,38 +668,24 @@ class BuddyFlowPauseView(APIView):
     Приостановка потока buddy
     """
     permission_classes = [IsBuddyOrModerator, CanManageFlow]
-    
-    def post(self, request, flow_id):
-        """
-        Приостановка потока
-        """
-        user_flow = self.get_user_flow(flow_id)
-        
-        if user_flow.status != UserFlow.FlowStatus.IN_PROGRESS:
-            return Response({
-                'error': 'Можно приостановить только активные потоки'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
+
+    def post(self, request, pk):
         serializer = FlowPauseSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user_flow, request.user)
-            return Response({
-                'message': 'Поток приостановлен',
-                'user_flow': UserFlowSerializer(user_flow).data
-            })
+        serializer.is_valid(raise_exception=True)
+        reason = serializer.validated_data.get('reason')
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def get_user_flow(self, flow_id):
-        """Получает UserFlow с проверкой прав"""
-        if self.request.user.has_role('moderator'):
-            return get_object_or_404(UserFlow, id=flow_id)
-        return get_object_or_404(
-            UserFlow,
-            id=flow_id,
-            flow_buddies__buddy_user=self.request.user,
-            flow_buddies__is_active=True
-        )
+        user_flow = self.get_user_flow(pk)
+        user_flow.pause(paused_by=request.user, reason=reason)
+        
+        return Response({'status': 'paused'}, status=status.HTTP_200_OK)
+
+    def get_user_flow(self, pk):
+        """Получает UserFlow по pk и проверяет права"""
+        user_flow = get_object_or_404(UserFlow, pk=pk)
+        # Проверяем, что текущий бадди управляет этим потоком
+        if not FlowBuddy.objects.filter(user_flow=user_flow, buddy_user=self.request.user).exists():
+            raise PermissionDenied("Вы не являетесь бадди этого потока.")
+        return user_flow
 
 
 class BuddyFlowResumeView(APIView):
@@ -623,58 +693,19 @@ class BuddyFlowResumeView(APIView):
     Возобновление потока buddy
     """
     permission_classes = [IsBuddyOrModerator, CanManageFlow]
-    
-    def post(self, request, flow_id):
-        """
-        Возобновление потока
-        """
-        user_flow = self.get_user_flow(flow_id)
-        
-        if user_flow.status != UserFlow.FlowStatus.PAUSED:
-            return Response({
-                'error': 'Можно возобновить только приостановленные потоки'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
+
+    def post(self, request, pk):
+        user_flow = self.get_user_flow(pk)
         user_flow.resume()
-        
-        # Записываем действие
-        FlowAction.objects.create(
-            user_flow=user_flow,
-            action_type=FlowAction.ActionType.RESUMED,
-            performed_by=request.user
-        )
-        
-        return Response({
-            'message': 'Поток возобновлен',
-            'user_flow': UserFlowSerializer(user_flow).data
-        })
-    
-    def get_user_flow(self, flow_id):
-        """Получает UserFlow с проверкой прав"""
-        if self.request.user.has_role('moderator'):
-            return get_object_or_404(UserFlow, id=flow_id)
-        return get_object_or_404(
-            UserFlow,
-            id=flow_id,
-            flow_buddies__buddy_user=self.request.user,
-            flow_buddies__is_active=True
-        )
+        return Response({'status': 'in_progress'}, status=status.HTTP_200_OK)
 
-
-class BuddyFlowDeleteView(generics.DestroyAPIView):
-    """
-    Удаление (остановка) потока buddy
-    """
-    permission_classes = [IsBuddyOrModerator, CanManageFlow]
-    
-    def get_queryset(self):
-        if self.request.user.has_role('moderator'):
-            return UserFlow.objects.active()
-        return UserFlow.objects.for_buddy(self.request.user)
-    
-    def perform_destroy(self, instance):
-        """Мягкое удаление UserFlow"""
-        instance.delete()  # Использует мягкое удаление из BaseModel
+    def get_user_flow(self, pk):
+        """Получает UserFlow по pk и проверяет права"""
+        user_flow = get_object_or_404(UserFlow, pk=pk)
+        # Проверяем, что текущий бадди управляет этим потоком
+        if not FlowBuddy.objects.filter(user_flow=user_flow, buddy_user=self.request.user).exists():
+            raise PermissionDenied("Вы не являетесь бадди этого потока.")
+        return user_flow
 
 
 # ========== Представления для модераторов ==========

@@ -11,21 +11,51 @@ from .models import (
 )
 
 
+def _create_initial_step_progress(user_flow):
+    """Вспомогательная функция для создания UserStepProgress для UserFlow."""
+    step_progress_list = []
+    # Сортируем шаги по order, чтобы найти первый
+    steps = user_flow.flow.flow_steps.filter(is_active=True).order_by('order')
+    first_step = steps.first()
+
+    for step in steps:
+        # Первый по порядку шаг становится доступным, остальные блокируются.
+        status = (
+            UserStepProgress.StepStatus.AVAILABLE
+            if step == first_step
+            else UserStepProgress.StepStatus.LOCKED
+        )
+        step_progress_list.append(
+            UserStepProgress(user_flow=user_flow, flow_step=step, status=status)
+        )
+
+    if step_progress_list:
+        UserStepProgress.objects.bulk_create(step_progress_list)
+
+    # Устанавливаем текущий шаг для UserFlow
+    if first_step:
+        # Используем update_fields, чтобы избежать рекурсивного вызова сигнала
+        UserFlow.objects.filter(pk=user_flow.pk).update(current_step=first_step)
+
+
 @receiver(post_save, sender=UserFlow)
-def user_flow_created_handler(sender, instance, created, **kwargs):
+def user_flow_event_handler(sender, instance, created, **kwargs):
     """
-    Обработчик создания UserFlow
+    Обрабатывает ключевые события жизненного цикла UserFlow:
+    - Создание
+    - Начало (переход в IN_PROGRESS)
     """
     if created:
-        # Записываем действие о запуске потока
+        # Записываем действие о создании/запуске потока
         FlowAction.objects.create(
             user_flow=instance,
             action_type=FlowAction.ActionType.STARTED,
+            # В тестах нет request.user, поэтому используем instance.user
             performed_by=instance.user,
-            reason='Поток запущен автоматически'
+            reason='Поток назначен пользователю'
         )
-        
-        # Уведомляем бадди о новом назначении
+
+        # Уведомляем бадди о новом назначении, если они есть
         active_buddies = instance.flow_buddies.filter(is_active=True)
         for flow_buddy in active_buddies:
             from apps.users.tasks import notify_buddy_assignment
@@ -34,6 +64,10 @@ def user_flow_created_handler(sender, instance, created, **kwargs):
                 mentee_user_id=instance.user.id,
                 flow_title=instance.flow.title
             )
+
+    # Если поток перешел в статус "в процессе" и для него еще не создан прогресс
+    if instance.status == UserFlow.FlowStatus.IN_PROGRESS and not instance.step_progress.exists():
+        _create_initial_step_progress(instance)
 
 
 @receiver(post_save, sender=UserFlow)
@@ -98,11 +132,11 @@ def step_progress_updated_handler(sender, instance, created, **kwargs):
             next_progress, created = UserStepProgress.objects.get_or_create(
                 user_flow=instance.user_flow,
                 flow_step=next_step,
-                defaults={'status': 'not_started'}
+                defaults={'status': UserStepProgress.StepStatus.AVAILABLE}
             )
             
-            if next_progress.status == 'locked':
-                next_progress.status = 'not_started'
+            if next_progress.status == UserStepProgress.StepStatus.LOCKED:
+                next_progress.status = UserStepProgress.StepStatus.AVAILABLE
                 next_progress.save()
 
 
@@ -157,16 +191,40 @@ def flow_buddy_assigned_handler(sender, instance, created, **kwargs):
     """
     if created and instance.is_active:
         # Записываем действие о назначении бадди
+        # Если не указано, кто назначил, считаем, что это сделал сам бадди
+        performer = instance.assigned_by if instance.assigned_by else instance.buddy_user
         FlowAction.objects.create(
             user_flow=instance.user_flow,
-            action_type='buddy_assigned',
-            performed_by=instance.assigned_by,
+            action_type=FlowAction.ActionType.BUDDY_ASSIGNED,
+            performed_by=performer,
             reason=f'Назначен бадди: {instance.buddy_user.name}',
             metadata={
                 'buddy_user_id': instance.buddy_user.id,
                 'buddy_name': instance.buddy_user.name
             }
         )
+
+
+@receiver(pre_save, sender=FlowBuddy)
+def flow_buddy_removed_handler(sender, instance, **kwargs):
+    """Отправляет уведомление пользователю, когда бадди удаляется."""
+    if instance.pk:
+        try:
+            old_instance = sender.objects.get(pk=instance.pk)
+            # Если бадди был активен, а стал неактивен (или удаляется)
+            if old_instance.is_active and not instance.is_active:
+                FlowAction.objects.create(
+                    user_flow=instance.user_flow,
+                    action_type=FlowAction.ActionType.BUDDY_REMOVED,
+                    performed_by=instance.assigned_by, # TODO: Кто удалил?
+                    reason=f'Удален бадди: {instance.buddy_user.name}',
+                    metadata={
+                        'buddy_user_id': instance.buddy_user.id,
+                        'buddy_name': instance.buddy_user.name
+                    }
+                )
+        except FlowBuddy.DoesNotExist:
+            pass
 
 
 @receiver(pre_save, sender=UserFlow)

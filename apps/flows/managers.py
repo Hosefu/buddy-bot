@@ -117,7 +117,7 @@ class UserFlowManager(models.Manager):
         Returns:
             QuerySet: Прохождения потоков пользователя
         """
-        return self.active().filter(user=user)
+        return self.active().filter(user=user, flow__is_active=True)
     
     def in_progress(self):
         """
@@ -268,7 +268,7 @@ class UserFlowManager(models.Manager):
         step_progress_list = []
         for step in flow.flow_steps.filter(is_active=True).order_by('order'):
             # Первый этап доступен сразу, остальные заблокированы
-            status = 'not_started' if step.order == 1 else 'locked'
+            status = 'available' if step.order == 1 else 'locked'
             
             step_progress_list.append(
                 UserStepProgress(

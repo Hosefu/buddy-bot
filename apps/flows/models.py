@@ -4,6 +4,7 @@
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from rest_framework.exceptions import PermissionDenied
 
 from apps.common.models import BaseModel, ActiveModel, OrderedModel, StatusChoices
 from apps.users.models import User
@@ -631,32 +632,42 @@ class UserStepProgress(BaseModel):
         ]
     
     def __str__(self):
-        return f"{self.user_flow.user.name} - {self.flow_step.title}"
+        return f"{self.user_flow.user.name} - {self.flow_step.title} ({self.status})"
+    
+    def save(self, *args, **kwargs):
+        """
+        Переопределенный метод сохранения для бизнес-логики.
+        """
+        # PRG-05: Запрещаем изменять прогресс, если флоу на паузе.
+        if self.user_flow.status == UserFlow.FlowStatus.PAUSED:
+            # Проверяем, меняется ли что-то кроме полей, которые могут меняться на паузе
+            if self.pk is not None:
+                orig = UserStepProgress.objects.get(pk=self.pk)
+                # Позволяем только снять паузу (это делается не здесь) или изменить некритичные поля
+                if orig.status != self.status:
+                     raise PermissionDenied("Нельзя изменять прогресс в приостановленном потоке.")
+
+        super().save(*args, **kwargs)
     
     @property
     def is_accessible(self):
-        """Проверяет, доступен ли этап для выполнения"""
-        # Первый этап всегда доступен
-        if self.flow_step.order == 1:
-            return True
-        
-        # Проверяем, завершен ли предыдущий этап
-        previous_step = self.flow_step.flow.flow_steps.filter(
-            order=self.flow_step.order - 1
-        ).first()
-        
-        if not previous_step:
-            return True
-        
-        previous_progress = UserStepProgress.objects.filter(
-            user_flow=self.user_flow,
-            flow_step=previous_step
-        ).first()
-        
-        return (
-            previous_progress and 
-            previous_progress.status == self.StepStatus.COMPLETED
-        )
+        """
+        Проверяет, доступен ли этот этап для пользователя.
+        Этап доступен если:
+        - Статус самого этапа не 'locked'
+        - Статус всего потока не 'paused' или 'suspended'
+        - Для первого этапа, его order=1
+        - Для последующих, предыдущий этап завершен
+        """
+        # Этап недоступен, если поток приостановлен или заблокирован
+        if self.user_flow.status in [UserFlow.FlowStatus.PAUSED, UserFlow.FlowStatus.SUSPENDED]:
+            return False
+
+        # Если статус этапа 'locked', он недоступен
+        if self.status == self.StepStatus.LOCKED:
+            return False
+            
+        return True
     
     @property
     def quiz_score_percentage(self):
@@ -720,10 +731,13 @@ class FlowAction(BaseModel):
         PAUSED = 'paused', 'Приостановлен'
         RESUMED = 'resumed', 'Возобновлен'
         COMPLETED = 'completed', 'Завершен'
+        DELETED = 'deleted', 'Удален'
         EXTENDED_DEADLINE = 'extended_deadline', 'Продлен дедлайн'
         STEP_COMPLETED = 'step_completed', 'Этап завершен'
         QUIZ_PASSED = 'quiz_passed', 'Квиз пройден'
         TASK_COMPLETED = 'task_completed', 'Задание выполнено'
+        BUDDY_ASSIGNED = 'buddy_assigned', 'Назначен бадди'
+        BUDDY_REMOVED = 'buddy_removed', 'Удален бадди'
     
     user_flow = models.ForeignKey(
         UserFlow,

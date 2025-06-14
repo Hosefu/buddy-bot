@@ -17,6 +17,7 @@ help: ## Показать эту справку
 .PHONY: install
 install: ## Полная установка системы
 	$(PYTHON) setup.py install
+	$(MAKE) test
 
 .PHONY: run
 run: ## Запуск системы в режиме разработки
@@ -130,11 +131,11 @@ lint: ## Проверка кода
 
 .PHONY: test
 test: ## Запуск тестов
-	$(MANAGE) test
+	pytest
 
 .PHONY: coverage
 coverage: ## Тесты с покрытием
-	coverage run --source='.' $(MANAGE) test
+	coverage run --source='.' -m pytest
 	coverage report
 
 # Документация

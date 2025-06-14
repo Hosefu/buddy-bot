@@ -5,6 +5,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from django.db import transaction
 from django.db import models
+import random
 
 from .models import (
     Flow, FlowStep, Task, Quiz, QuizQuestion, QuizAnswer,
@@ -155,6 +156,21 @@ class QuizSerializer(serializers.ModelSerializer):
             'questions', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        questions = data.get('questions', [])
+        
+        if instance.shuffle_questions:
+            random.shuffle(questions)
+            
+        if instance.shuffle_answers:
+            for question in questions:
+                if 'answers' in question:
+                    random.shuffle(question['answers'])
+                    
+        data['questions'] = questions
+        return data
 
 
 class FlowStepSerializer(serializers.ModelSerializer):
@@ -380,7 +396,7 @@ class UserFlowStartSerializer(serializers.Serializer):
     Сериализатор для запуска потока пользователем
     """
     user_id = serializers.IntegerField()
-    expected_completion_date = serializers.DateField(required=False)
+    expected_completion_date = serializers.DateField(required=True)
     additional_buddies = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
@@ -415,58 +431,56 @@ class UserFlowStartSerializer(serializers.Serializer):
         return list(buddies)
     
     def validate(self, data):
-        """Валидация запуска потока"""
-        user = data['user_id']
+        """Проверяет, что для данной пары user-flow еще нет активного UserFlow."""
+        user_id = data.get('user_id')
         flow = self.context['flow']
-        
-        # Проверяем, не запущен ли уже поток для пользователя
-        if UserFlow.objects.filter(user=user, flow=flow).exists():
-            raise serializers.ValidationError(
-                "Поток уже назначен этому пользователю"
-            )
-        
+        # Убираем проверку отсюда, чтобы view мог вернуть 409 вместо 400
+        # if UserFlow.objects.filter(user_id=user_id, flow=flow, status__in=['in_progress', 'paused']).exists():
+        #     raise serializers.ValidationError(
+        #         "Для этого пользователя уже запущен этот поток.",
+        #         code='conflict'
+        #     )
         return data
-    
+
     @transaction.atomic
     def create(self, validated_data):
-        """Запуск потока для пользователя"""
+        """Создает UserFlow и назначает бадди."""
         user = validated_data['user_id']
         flow = self.context['flow']
-        buddy = self.context['request'].user
+        assigner = self.context['request'].user
         additional_buddies = validated_data.get('additional_buddies', [])
-        
-        # Создаем UserFlow с прогрессом по этапам
-        user_flow = UserFlow.objects.create_with_steps(
+
+        # Создаем UserFlow сразу со статусом IN_PROGRESS
+        user_flow = UserFlow.objects.create(
             user=user,
             flow=flow,
-            expected_completion_date=validated_data.get('expected_completion_date')
+            expected_completion_date=validated_data.get('expected_completion_date'),
+            status=UserFlow.FlowStatus.IN_PROGRESS
         )
-        
-        # Назначаем основного бадди
-        FlowBuddy.objects.create(
-            user_flow=user_flow,
-            buddy_user=buddy,
-            assigned_by=buddy
-        )
-        
-        # Назначаем дополнительных бадди
-        for additional_buddy in additional_buddies:
+
+        # Создатель запроса автоматически становится бадди
+        buddies_to_create = {assigner}
+        buddies_to_create.update(additional_buddies)
+
+        for buddy in buddies_to_create:
             FlowBuddy.objects.create(
                 user_flow=user_flow,
-                buddy_user=additional_buddy,
-                assigned_by=buddy
+                buddy_user=buddy,
+                assigned_by=assigner
             )
         
-        # Записываем действие в историю
+        # Записываем действие в историю (сигнал это делает, но тут подробнее)
         FlowAction.objects.create(
             user_flow=user_flow,
             action_type=FlowAction.ActionType.STARTED,
-            performed_by=buddy,
+            performed_by=assigner,
+            reason="Поток назначен бадди",
             metadata={
-                'additional_buddies': [b.id for b in additional_buddies]
+                'user_id': user.id,
+                'user_name': user.name,
+                'buddies': [b.id for b in buddies_to_create]
             }
         )
-        
         return user_flow
 
 

@@ -213,29 +213,33 @@ class CanAccessFlowStep(permissions.BasePermission):
     """
     
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated
-    
-    def has_object_permission(self, request, view, obj):
-        # Модераторы и бадди имеют доступ ко всем этапам
+        if not (request.user and request.user.is_authenticated):
+            return False
+
+        # Модераторы и бадди имеют полный доступ для управления
         if request.user.has_role('moderator') or request.user.has_role('buddy'):
             return True
-        
+
         # Для обычных пользователей проверяем доступность этапа
-        if hasattr(view, 'get_user_flow'):
-            user_flow = view.get_user_flow()
-            if user_flow and user_flow.user == request.user:
-                # Проверяем, доступен ли этап
-                from apps.flows.models import UserStepProgress
-                try:
-                    step_progress = UserStepProgress.objects.get(
-                        user_flow=user_flow,
-                        flow_step=obj
-                    )
-                    return step_progress.is_accessible
-                except UserStepProgress.DoesNotExist:
-                    return False
-        
-        return False
+        flow_id = view.kwargs.get('flow_id')
+        step_id = view.kwargs.get('step_id')
+
+        if not flow_id or not step_id:
+            # Если нет ID, не можем проверить, делегируем другим пермишенам
+            return True
+
+        from apps.flows.models import UserFlow, FlowStep, UserStepProgress
+        try:
+            user_flow = UserFlow.objects.get(user=request.user, flow_id=flow_id)
+            flow_step = FlowStep.objects.get(id=step_id, flow_id=flow_id)
+            progress = UserStepProgress.objects.get(user_flow=user_flow, flow_step=flow_step)
+            return progress.is_accessible
+        except (UserFlow.DoesNotExist, FlowStep.DoesNotExist, UserStepProgress.DoesNotExist):
+            return False
+
+    def has_object_permission(self, request, view, obj):
+        # Этот метод больше не нужен, т.к. вся логика в has_permission
+        return True
 
 
 class TelegramBotPermission(permissions.BasePermission):

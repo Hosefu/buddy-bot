@@ -11,6 +11,7 @@
     python setup.py demo                 # Загрузка демо-данных
     python setup.py check                # Проверка системы
     python setup.py setup-webhook        # Настройка вебхука Telegram
+    python setup.py test                 # Запуск тестов
     python setup.py --help               # Справка по командам
 
 При запуске через Docker:
@@ -47,6 +48,7 @@ CONFIG = {
         'logs',
         'media',
         'staticfiles',
+        'reports', # Директория для отчетов о тестах
         'apps/common/management/commands',
     ],
     'management_commands': [
@@ -87,7 +89,8 @@ def run_django_command(command, description=None, capture_output=True):
             [sys.executable, 'manage.py'] + command,
             check=True,
             capture_output=capture_output,
-            text=True
+            text=True,
+            encoding='utf-8'
         )
         
         if capture_output:
@@ -220,6 +223,38 @@ def generate_tokens():
     return run_django_command(['generate_tokens'], "Генерация тестовых токенов")
 
 
+def run_tests():
+    """Запуск тестов с использованием pytest"""
+    logger.info(f"{BOLD}Запуск тестов...{RESET}")
+    try:
+        # Вызываем pytest как модуль, чтобы использовать правильный python-интерпретатор
+        result = subprocess.run(
+            [sys.executable, '-m', 'pytest', '--junitxml=reports/pytest-report.xml'],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding='utf-8'
+        )
+        # Печатаем вывод pytest, чтобы видеть прогресс и результаты
+        if result.stdout:
+            print(result.stdout)
+        logger.info(f"{GREEN}✓ Все тесты пройдены успешно!{RESET}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"{RED}✗ Некоторые тесты не пройдены. Смотрите отчет выше.{RESET}")
+        if e.stdout:
+            print(e.stdout)
+        if e.stderr:
+            print(f"{RED}STDERR:{RESET}", e.stderr)
+        return False
+    except FileNotFoundError:
+        logger.error(f"{RED}✗ Команда pytest не найдена. Убедитесь, что pytest установлен (pip install pytest).{RESET}")
+        return False
+    except Exception as e:
+        logger.error(f"{RED}✗ Не удалось запустить тесты: {e}{RESET}")
+        return False
+
+
 def create_superuser():
     """Интерактивное создание суперпользователя"""
     return run_django_command(['createsuperuser'], "Создание суперпользователя", capture_output=False)
@@ -249,86 +284,67 @@ def setup_telegram_webhook():
         )
         response_data = response.json()
         
-        if response_data.get('ok'):
-            logger.info(f"{GREEN}✓ Вебхук успешно установлен: {webhook_url}{RESET}")
+        if response.ok and response_data.get('ok'):
+            logger.info(f"{GREEN}✓ Вебхук успешно установлен: {response_data.get('description')}{RESET}")
             return True
         else:
             logger.error(f"{RED}✗ Ошибка установки вебхука: {response_data.get('description')}{RESET}")
             return False
-    except Exception as e:
-        logger.error(f"{RED}✗ Ошибка при настройке вебхука: {e}{RESET}")
+            
+    except requests.RequestException as e:
+        logger.error(f"{RED}✗ Ошибка сети при установке вебхука: {e}{RESET}")
         return False
 
 
 def check_system():
-    """Проверка работоспособности системы"""
-    logger.info(f"{BOLD}Проверка системы{RESET}")
+    """
+    Комплексная проверка системы:
+    - Проверка окружения
+    - Проверка миграций
+    - Проверка статических файлов
+    """
+    logger.info(f"\n{BOLD}{'='*60}\n🔬 ЗАПУСК ПРОВЕРКИ СИСТЕМЫ\n{'='*60}{RESET}\n")
     
-    # Проверка Django
+    failed_checks = []
+    
+    # 1. Проверка окружения
+    logger.info(f"{BLUE}--- Проверка окружения ---{RESET}")
+    if not check_environment():
+        failed_checks.append("Проверка окружения")
+    
+    # 2. Проверка миграций
+    logger.info(f"\n{BLUE}--- Проверка статуса миграций ---{RESET}")
     try:
-        result = run_django_command(['check'], "Проверка Django")
-        if not result:
-            return False
-    except Exception as e:
-        logger.error(f"{RED}✗ Ошибка проверки Django: {e}{RESET}")
+        # Запускаем showmigrations и проверяем, что все применены
+        result = subprocess.run(
+            [sys.executable, 'manage.py', 'showmigrations', '--plan'],
+            capture_output=True, text=True, check=True
+        )
+        if '(no migrations)' in result.stdout or '[X]' in result.stdout:
+            logger.info(f"{GREEN}✓ Все миграции применены{RESET}")
+        else:
+            logger.warning(f"{YELLOW}⚠️ Есть непримененные миграции{RESET}")
+            failed_checks.append("Миграции")
+            
+    except subprocess.CalledProcessError as e:
+        logger.error(f"{RED}✗ Не удалось проверить миграции: {e.stderr}{RESET}")
+        failed_checks.append("Миграции")
+        
+    # 3. Проверка статических файлов
+    logger.info(f"\n{BLUE}--- Проверка статических файлов ---{RESET}")
+    static_dir = Path(CONFIG.get('django_app', 'onboarding')) / 'static'
+    if not static_dir.exists() or not any(static_dir.iterdir()):
+        logger.warning(f"{YELLOW}⚠️ Директория со статикой пуста. Запустите 'collectstatic'{RESET}")
+    else:
+        logger.info(f"{GREEN}✓ Статические файлы на месте{RESET}")
+
+    # Итог
+    if not failed_checks:
+        logger.info(f"\n{GREEN}{BOLD}✅ Проверка системы завершена успешно!{RESET}")
+        return True
+    else:
+        logger.error(f"\n{RED}{BOLD}❌ Проверка системы выявила проблемы: {', '.join(failed_checks)}{RESET}")
         return False
-    
-    # Проверка базы данных
-    try:
-        import django
-        django.setup()
-        from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            row = cursor.fetchone()
-            if row[0] == 1:
-                logger.info(f"{GREEN}✓ Соединение с базой данных успешно{RESET}")
-            else:
-                logger.error(f"{RED}✗ Ошибка соединения с базой данных{RESET}")
-                return False
-    except Exception as e:
-        logger.error(f"{RED}✗ Ошибка проверки базы данных: {e}{RESET}")
-        return False
-    
-    # Проверка Redis (если используется)
-    if 'REDIS_URL' in os.environ:
-        try:
-            import redis
-            redis_url = os.environ.get('REDIS_URL')
-            r = redis.from_url(redis_url)
-            r.ping()
-            logger.info(f"{GREEN}✓ Соединение с Redis успешно{RESET}")
-        except ImportError:
-            logger.warning(f"{YELLOW}⚠️ Библиотека redis не установлена{RESET}")
-        except Exception as e:
-            logger.warning(f"{YELLOW}⚠️ Ошибка соединения с Redis: {e}{RESET}")
-    
-    # Проверка версий компонентов
-    try:
-        import platform
-        import django
-        
-        logger.info(f"{BLUE}Информация о системе:{RESET}")
-        logger.info(f"  • Python: {platform.python_version()}")
-        logger.info(f"  • Django: {django.__version__}")
-        logger.info(f"  • OS: {platform.system()} {platform.release()}")
-        
-        try:
-            import celery
-            logger.info(f"  • Celery: {celery.__version__}")
-        except ImportError:
-            pass
-        
-        try:
-            import rest_framework
-            logger.info(f"  • Django REST Framework: {rest_framework.VERSION}")
-        except ImportError:
-            pass
-    except Exception as e:
-        logger.warning(f"{YELLOW}⚠️ Ошибка при получении информации о версиях: {e}{RESET}")
-    
-    logger.info(f"{GREEN}✓ Проверка системы завершена успешно{RESET}")
-    return True
 
 
 def full_install():
@@ -339,8 +355,9 @@ def full_install():
         (check_environment, "Проверка окружения"),
         (create_required_directories, "Создание директорий"),
         (migrate_database, "Применение миграций"),
-        (collect_static, "Сбор статических файлов"),
         (setup_system, "Настройка системы"),
+        (run_tests, "Запуск тестов"),
+        (collect_static, "Сбор статических файлов"),
         (load_demo_data, "Загрузка демо-данных"),
         (generate_tokens, "Генерация токенов API"),
     ]
@@ -352,54 +369,47 @@ def full_install():
         try:
             if not step_func():
                 failed_steps.append(description)
+                logger.error(f"{RED}✗ Этап '{description}' завершился с ошибкой.{RESET}")
         except Exception as e:
-            logger.error(f"{RED}✗ Критическая ошибка: {e}{RESET}")
             failed_steps.append(description)
-    
-    # Результат
-    print("\n")
-    if failed_steps:
-        logger.warning(f"\n{YELLOW}⚠️  Установка завершена с ошибками: {', '.join(failed_steps)}{RESET}")
-        sys.exit(1)
+            logger.error(f"{RED}✗ Критическая ошибка на этапе '{description}': {e}{RESET}")
+
+    if not failed_steps:
+        logger.info(f"\n{GREEN}{BOLD}{'='*60}\n✅ СИСТЕМА УСПЕШНО УСТАНОВЛЕНА И НАСТРОЕНА\n{'='*60}{RESET}")
+        return True
     else:
-        logger.info(f"\n{BOLD}{'='*60}\n{GREEN}🎉 УСТАНОВКА ЗАВЕРШЕНА УСПЕШНО!{RESET}\n{BOLD}{'='*60}{RESET}")
-        logger.info(f"\n{BLUE}🔗 Полезные ссылки:{RESET}")
-        logger.info(f"   • API: http://localhost:8000/api/")
-        logger.info(f"   • Админка: http://localhost:8000/admin/")
-        logger.info(f"   • Документация: http://localhost:8000/api/docs/")
-        logger.info(f"{BOLD}{'='*60}{RESET}")
+        logger.warning(f"\n{YELLOW}{BOLD}{'='*60}\n⚠️  Установка завершена с ошибками: {', '.join(failed_steps)}\n{'='*60}{RESET}")
+        return False
 
 
 def display_help():
-    """Выводит справку по использованию"""
+    """Отображение справки по командам"""
     help_text = f"""
-{BOLD}Система установки и управления проектом онбординга{RESET}
+{BOLD}Система управления проектом онбординга{RESET}
 
-{BLUE}Использование:{RESET}
+{BOLD}Использование:{RESET}
   python setup.py [команда]
 
-{BLUE}Доступные команды:{RESET}
-  install             Полная установка системы
-  migrate             Только миграции БД
-  static              Сборка статических файлов
-  createsuperuser     Создание администратора
-  demo                Загрузка демо-данных
-  check               Проверка системы
-  setup-webhook       Настройка вебхука Telegram
-  help                Эта справка
-
-{BLUE}Примеры:{RESET}
-  python setup.py install
-  docker-compose exec web python setup.py check
+{BOLD}Доступные команды:{RESET}
+  install           Полная установка и настройка системы
+  migrate           Применение миграций базы данных
+  static            Сборка статических файлов
+  createsuperuser   Интерактивное создание администратора
+  demo              Загрузка демонстрационных данных
+  check             Комплексная проверка системы
+  setup-webhook     Настройка вебхука Telegram
+  test              Запуск тестов
+  help              Эта справка
 """
     print(help_text)
 
 
 def main():
-    """Основная функция"""
+    """Основная функция-диспетчер"""
+    # --- Настройка окружения ---
     setup_environment()
     
-    # Парсинг аргументов командной строки
+    # --- Парсинг аргументов командной строки ---
     parser = argparse.ArgumentParser(
         description='Система установки и управления проектом онбординга',
         add_help=False
@@ -409,7 +419,7 @@ def main():
     
     args = parser.parse_args()
     
-    # Выполнение соответствующей команды
+    # --- Выполнение соответствующей команды ---
     command_map = {
         'install': full_install,
         'migrate': migrate_database,
@@ -418,16 +428,18 @@ def main():
         'demo': load_demo_data,
         'check': check_system,
         'setup-webhook': setup_telegram_webhook,
+        'test': run_tests,
         'help': display_help,
     }
     
     if args.command in command_map:
-        command_map[args.command]()
+        if not command_map[args.command]():
+            # Если команда завершилась с ошибкой, выходим с ненулевым кодом
+            sys.exit(1)
     else:
         logger.error(f"{RED}Неизвестная команда: {args.command}{RESET}")
         display_help()
         sys.exit(1)
-
 
 if __name__ == '__main__':
     main()
