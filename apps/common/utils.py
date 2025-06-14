@@ -5,12 +5,13 @@ import hashlib
 import hmac
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Any, Optional
 from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from .models import WorkingCalendar
 
 
 def generate_random_string(length: int = 10, include_digits: bool = True, include_special: bool = False) -> str:
@@ -477,3 +478,70 @@ def generate_qr_code_data(text: str) -> str:
         
     except ImportError:
         return ""  # qrcode не установлен
+
+
+def get_working_days_count(start_date=None, end_date=None):
+    """
+    Подсчет рабочих дней в указанном диапазоне
+    """
+    if not start_date:
+        start_date = timezone.now().date()
+    if not end_date:
+        end_date = start_date + timedelta(days=30)  # По умолчанию смотрим на месяц вперед
+    
+    # Сначала проверяем в календаре рабочих дней
+    calendar_days = WorkingCalendar.objects.filter(
+        date__range=(start_date, end_date)
+    ).values_list('date', 'is_working_day')
+    
+    # Преобразуем в словарь для быстрого доступа
+    calendar_dict = {day: is_working for day, is_working in calendar_days}
+    
+    # Счетчик рабочих дней
+    working_days = 0
+    current = start_date
+    
+    while current <= end_date:
+        # Если дата есть в нашем календаре, используем оттуда
+        if current in calendar_dict:
+            if calendar_dict[current]:
+                working_days += 1
+        # Иначе используем стандартную логику (пн-пт)
+        elif current.weekday() < 5:  # 0-4 = пн-пт
+            working_days += 1
+        
+        current += timedelta(days=1)
+    
+    return working_days
+
+
+def add_working_days(start_date, working_days_to_add):
+    """
+    Добавляет указанное количество рабочих дней к дате
+    
+    Args:
+        start_date (date): Начальная дата
+        working_days_to_add (int): Количество рабочих дней для добавления
+        
+    Returns:
+        date: Дата с учетом добавленных рабочих дней
+    """
+    if working_days_to_add <= 0:
+        return start_date
+    
+    current = start_date
+    days_added = 0
+    
+    while days_added < working_days_to_add:
+        current += timedelta(days=1)
+        
+        # Проверяем в календаре
+        calendar_day = WorkingCalendar.objects.filter(date=current).first()
+        if calendar_day:
+            if calendar_day.is_working_day:
+                days_added += 1
+        # Если нет в календаре, проверяем по дням недели
+        elif current.weekday() < 5:  # 0-4 = пн-пт
+            days_added += 1
+    
+    return current

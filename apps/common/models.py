@@ -111,3 +111,34 @@ class StatusChoices(models.TextChoices):
     SUSPENDED = 'suspended', 'Заблокировано'
     SKIPPED = 'skipped', 'Пропущено'
     LOCKED = 'locked', 'Заблокировано'
+
+
+class WorkingCalendar(models.Model):
+    """
+    Календарь рабочих дней
+    """
+    date = models.DateField(
+        'Дата',
+        unique=True,
+        help_text='Дата календаря'
+    )
+    is_working_day = models.BooleanField(
+        'Рабочий день',
+        default=True,
+        help_text='Является ли день рабочим'
+    )
+    description = models.CharField(
+        'Описание',
+        max_length=255,
+        blank=True,
+        help_text='Описание (например, название праздника)'
+    )
+    
+    class Meta:
+        db_table = 'working_calendar'
+        verbose_name = 'Календарь рабочих дней'
+        verbose_name_plural = 'Календарь рабочих дней'
+        ordering = ['date']
+    
+    def __str__(self):
+        return f"{self.date} - {'Рабочий' if self.is_working_day else 'Выходной'}"

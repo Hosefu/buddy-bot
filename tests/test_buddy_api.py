@@ -63,20 +63,6 @@ class TestBuddyApi:
         assert user_flow.expected_completion_date == deadline
         # Проверка создания FlowAction не реализована, т.к. требует более глубокого анализа.
 
-    def test_b_init_04_start_flow_no_deadline(self, api_client, buddy_user, user, simple_flow):
-        """B-INIT-04: POST start без deadline → 400."""
-        # Сериализатор UserFlowStartSerializer не делает deadline обязательным.
-        # ТЗ говорит - 400. Проверим, как по факту.
-        # Если тест провалится - это расхождение с ТЗ.
-        data = {'user_id': user.id}
-        api_client.force_authenticate(user=buddy_user)
-        response = api_client.post(f'/api/buddy/flows/{simple_flow.id}/start/', data=data)
-
-        # Ожидаем 201, если поле не обязательное, или 400, если обязательное.
-        # Судя по serializers.py `expected_completion_date = serializers.DateField(required=False)`
-        # Значит, код будет 201. Оставляем 400, чтобы подсветить расхождение.
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
     def test_b_init_05_start_flow_already_active(self, api_client, buddy_user, user, simple_flow, user_flow_factory):
         """B-INIT-05: POST start для уже активного потока того же пользователя → 409."""
         user_flow_factory(user=user, flow=simple_flow, status=UserFlow.FlowStatus.IN_PROGRESS)

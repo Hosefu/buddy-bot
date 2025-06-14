@@ -623,6 +623,24 @@ class BuddyFlowStartView(generics.CreateAPIView):
                 {'error': 'Для этого пользователя уже запущен этот поток.'},
                 status=status.HTTP_409_CONFLICT
             )
+            
+        # Добавляем автоматический расчет даты завершения, если она не указана
+        if 'expected_completion_date' not in request.data:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=False)  # Не вызываем исключение для expected_completion_date
+            
+            # Если ошибка только из-за expected_completion_date, рассчитаем её
+            if (set(serializer.errors.keys()) == {'expected_completion_date'} or 
+                not serializer.errors):
+                # Создаем копию данных для модификации
+                data = request.data.copy()
+                # Рассчитываем ожидаемую дату завершения
+                data['expected_completion_date'] = flow.calculate_expected_completion_date().isoformat()
+                # Используем обновленные данные
+                serializer = self.get_serializer(data=data)
+                serializer.is_valid(raise_exception=True)
+                return super().create(request, *args, **kwargs)
+            
         return super().create(request, *args, **kwargs)
 
 

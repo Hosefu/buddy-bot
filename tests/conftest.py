@@ -7,6 +7,11 @@ from apps.flows.models import Flow, FlowStep, UserFlow, Task, Quiz, QuizQuestion
 from apps.guides.models import Article
 from apps.users.models import Role, UserRole
 from django.utils import timezone
+from tests.test_common_utils import pytest_plugins
+try:
+    from .test_common_utils import setup_calendar
+except ImportError:
+    pass
 
 User = get_user_model()
 
@@ -165,4 +170,9 @@ def mock_telegram_request(mocker):
     mock_response.text = '{"ok": true, "result": {}}'
 
     # Мокаем метод post в модуле, где он используется (в задачах Celery)
-    return mocker.patch('apps.users.tasks.requests.post', return_value=mock_response) 
+    return mocker.patch('apps.users.tasks.requests.post', return_value=mock_response)
+
+pytest_plugins = [
+    "tests.fixtures.users",
+    "tests.fixtures.flows",
+] 

@@ -10,6 +10,7 @@ from apps.common.models import BaseModel, ActiveModel, OrderedModel, StatusChoic
 from apps.users.models import User
 from .managers import FlowManager, UserFlowManager
 from .snapshot_models import TaskSnapshot, QuizSnapshot, QuizQuestionSnapshot
+from apps.common.utils import add_working_days
 
 
 class Flow(BaseModel, ActiveModel):
@@ -71,6 +72,38 @@ class Flow(BaseModel, ActiveModel):
         """Возвращает следующий порядковый номер для нового этапа"""
         last_step = self.flow_steps.order_by('-order').first()
         return (last_step.order + 1) if last_step else 1
+
+    def calculate_expected_completion_date(self, start_date=None):
+        """
+        Рассчитывает ожидаемую дату завершения на основе сложности этапов
+        
+        Args:
+            start_date (date, optional): Дата начала. По умолчанию - сегодня
+            
+        Returns:
+            date: Ожидаемая дата завершения
+        """
+        if not start_date:
+            start_date = timezone.now().date()
+        
+        # Суммируем estimated_time_minutes всех этапов
+        total_minutes = 0
+        for step in self.flow_steps.filter(is_active=True):
+            if step.estimated_time_minutes:
+                total_minutes += step.estimated_time_minutes
+        
+        # Переводим минуты в рабочие дни (считаем, что в день сотрудник 
+        # может уделить примерно 2 часа на обучение)
+        hours_per_day = 2
+        minutes_per_day = hours_per_day * 60
+        
+        working_days_needed = (total_minutes + minutes_per_day - 1) // minutes_per_day  # округляем вверх
+        
+        # Минимум 1 рабочий день
+        working_days_needed = max(1, working_days_needed)
+        
+        # Добавляем рабочие дни к текущей дате
+        return add_working_days(start_date, working_days_needed)
 
 
 class FlowStep(BaseModel, OrderedModel, ActiveModel):

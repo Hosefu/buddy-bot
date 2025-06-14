@@ -396,7 +396,7 @@ class UserFlowStartSerializer(serializers.Serializer):
     Сериализатор для запуска потока пользователем
     """
     user_id = serializers.IntegerField()
-    expected_completion_date = serializers.DateField(required=True)
+    expected_completion_date = serializers.DateField(required=False)
     additional_buddies = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,
@@ -450,11 +450,16 @@ class UserFlowStartSerializer(serializers.Serializer):
         assigner = self.context['request'].user
         additional_buddies = validated_data.get('additional_buddies', [])
 
+        # Если срок выполнения не указан, рассчитываем его автоматически
+        expected_completion_date = validated_data.get('expected_completion_date')
+        if not expected_completion_date:
+            expected_completion_date = flow.calculate_expected_completion_date()
+
         # Создаем UserFlow сразу со статусом IN_PROGRESS
         user_flow = UserFlow.objects.create(
             user=user,
             flow=flow,
-            expected_completion_date=validated_data.get('expected_completion_date'),
+            expected_completion_date=expected_completion_date,
             status=UserFlow.FlowStatus.IN_PROGRESS
         )
 
