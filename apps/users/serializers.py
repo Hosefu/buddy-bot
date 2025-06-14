@@ -44,11 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Базовый сериализатор пользователя
     """
-    active_roles = UserRoleSerializer(
-        source='get_active_roles', 
-        many=True, 
-        read_only=True
-    )
+    roles = RoleSerializer(many=True, read_only=True)
     telegram_link = serializers.URLField(read_only=True)
     
     class Meta:
@@ -56,11 +52,11 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'telegram_id', 'name', 'telegram_username',
             'position', 'department', 'hire_date', 'is_active',
-            'last_login_at', 'created_at', 'active_roles', 'telegram_link'
+            'last_login_at', 'created_at', 'roles', 'telegram_link'
         ]
         read_only_fields = [
             'id', 'telegram_id', 'last_login_at', 'created_at', 
-            'telegram_link'
+            'telegram_link', 'roles'
         ]
     
     def validate_telegram_id(self, value):
@@ -107,12 +103,8 @@ class UserDetailSerializer(UserSerializer):
     """
     Подробный сериализатор пользователя для административных функций
     """
-    user_roles = UserRoleSerializer(many=True, read_only=True)
-    
     class Meta(UserSerializer.Meta):
-        fields = UserSerializer.Meta.fields + [
-            'user_roles', 'telegram_username', 'updated_at'
-        ]
+        fields = UserSerializer.Meta.fields + ['updated_at']
 
 
 class TelegramAuthSerializer(serializers.Serializer):
@@ -277,20 +269,16 @@ class ProfileSerializer(serializers.ModelSerializer):
     """
     Сериализатор для профиля пользователя (для самого пользователя)
     """
-    active_roles = serializers.StringRelatedField(
-        source='get_active_roles', 
-        many=True, 
-        read_only=True
-    )
+    roles = serializers.StringRelatedField(many=True, read_only=True)
     
     class Meta:
         model = User
         fields = [
             'id', 'email', 'name', 'telegram_username',
             'position', 'department', 'hire_date', 
-            'active_roles', 'created_at'
+            'roles', 'created_at'
         ]
-        read_only_fields = ['id', 'email', 'created_at', 'active_roles']
+        read_only_fields = ['id', 'email', 'created_at', 'roles']
 
 
 class PasswordChangeSerializer(serializers.Serializer):
@@ -326,11 +314,7 @@ class UserListSerializer(serializers.ModelSerializer):
     """
     Сериализатор для списка пользователей (краткая информация)
     """
-    roles = serializers.StringRelatedField(
-        source='get_active_roles',
-        many=True,
-        read_only=True
-    )
+    roles = serializers.StringRelatedField(many=True, read_only=True)
     
     class Meta:
         model = User
@@ -338,4 +322,4 @@ class UserListSerializer(serializers.ModelSerializer):
             'id', 'name', 'telegram_id', 'position', 'department', 
             'is_active', 'roles', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'roles']

@@ -363,25 +363,31 @@ class UserFlowDetailSerializer(UserFlowSerializer):
             step_progress = obj.step_progress.all().order_by('flow_step__order')
             return UserStepProgressSerializer(step_progress, many=True, context=self.context).data
         
-        # Для обычного пользователя - только доступные и завершенные этапы
+        # Для обычного пользователя - показываем все этапы, но с ограничениями
         if user == obj.user:
-            step_progress = obj.step_progress.filter(
-                models.Q(status__in=['completed', 'in_progress']) |
-                models.Q(flow_step__order=obj.current_step.order if obj.current_step else 1)
-            ).order_by('flow_step__order')
+            step_progress = obj.step_progress.all().order_by('flow_step__order')
             
             serialized_steps = []
             for progress in step_progress:
-                step_data = UserStepProgressSerializer(progress, context=self.context).data
-                
-                # Для будущих этапов показываем только заголовок
-                if progress.status == 'locked':
+                # Для недоступных этапов показываем только базовую информацию
+                if progress.status == UserStepProgress.StepStatus.LOCKED:
                     step_data = {
-                        'id': step_data['id'],
-                        'flow_step_title': step_data.get('flow_step_title'),
-                        'status': 'locked',
-                        'order': step_data.get('order')
+                        'id': progress.id,
+                        'flow_step': {
+                            'id': progress.flow_step.id,
+                            'title': progress.flow_step.title,
+                            'description': progress.flow_step.description,
+                            'step_type': progress.flow_step.step_type,
+                            'order': progress.flow_step.order,
+                            'estimated_time_minutes': progress.flow_step.estimated_time_minutes,
+                            # НЕ включаем article, task, quiz - это и есть контент
+                        },
+                        'status': progress.status,
+                        'is_accessible': False,
                     }
+                else:
+                    # Для доступных этапов - полная информация
+                    step_data = UserStepProgressSerializer(progress, context=self.context).data
                 
                 serialized_steps.append(step_data)
             

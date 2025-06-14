@@ -6,7 +6,29 @@ from django.utils import timezone
 from apps.common.models import BaseModel
 
 
-class TaskSnapshot(BaseModel):
+class BaseSnapshotModel(BaseModel):
+    """
+    Базовая модель для всех снапшотов
+    """
+    snapshot_created_at = models.DateTimeField(
+        'Время создания снапшота',
+        default=timezone.now,
+        help_text='Когда был создан этот снапшот'
+    )
+    
+    # Версия контента на момент снапшота
+    content_version = models.CharField(
+        'Версия контента',
+        max_length=50,
+        default='1.0',
+        help_text='Версия контента на момент создания снапшота'
+    )
+    
+    class Meta:
+        abstract = True
+
+
+class TaskSnapshot(BaseSnapshotModel):
     """
     Снапшот задания на момент выполнения пользователем
     """
@@ -38,7 +60,7 @@ class TaskSnapshot(BaseModel):
         return f"Снапшот: {self.task_title} - {self.user_step_progress.user_flow.user.name}"
 
 
-class QuizSnapshot(BaseModel):
+class QuizSnapshot(BaseSnapshotModel):
     """
     Снапшот квиза на момент прохождения пользователем
     """
@@ -69,7 +91,7 @@ class QuizSnapshot(BaseModel):
         return f"Снапшот: {self.quiz_title} - {self.user_step_progress.user_flow.user.name}"
 
 
-class QuizQuestionSnapshot(BaseModel):
+class QuizQuestionSnapshot(BaseSnapshotModel):
     """
     Снапшот вопроса квиза на момент прохождения
     """
@@ -96,7 +118,7 @@ class QuizQuestionSnapshot(BaseModel):
         return f"Вопрос {self.question_order}: {self.question_text[:50]}..."
 
 
-class QuizAnswerSnapshot(BaseModel):
+class QuizAnswerSnapshot(BaseSnapshotModel):
     """
     Снапшот варианта ответа на момент прохождения
     """
@@ -124,7 +146,7 @@ class QuizAnswerSnapshot(BaseModel):
         return f"Ответ: {self.answer_text[:30]}..."
 
 
-class UserQuizAnswerSnapshot(BaseModel):
+class UserQuizAnswerSnapshot(BaseSnapshotModel):
     """
     Снапшот ответа пользователя (замена UserQuizAnswer)
     """
@@ -158,4 +180,33 @@ class UserQuizAnswerSnapshot(BaseModel):
         unique_together = [('quiz_snapshot', 'question_snapshot')]
     
     def __str__(self):
-        return f"{self.quiz_snapshot.user_step_progress.user_flow.user.name} - {self.question_snapshot.question_text[:30]}..." 
+        return f"{self.quiz_snapshot.user_step_progress.user_flow.user.name} - {self.question_snapshot.question_text[:30]}..."
+
+
+class ArticleSnapshot(BaseSnapshotModel):
+    """
+    Снапшот статьи на момент прочтения пользователем
+    """
+    user_step_progress = models.OneToOneField(
+        'flows.UserStepProgress',
+        on_delete=models.CASCADE,
+        related_name='article_snapshot',
+        verbose_name='Прогресс по этапу'
+    )
+    
+    # Снапшот данных статьи
+    article_title = models.CharField('Название статьи', max_length=255)
+    article_content = models.TextField('Содержание статьи')
+    article_summary = models.TextField('Краткое описание', blank=True)
+    
+    # Время чтения
+    reading_started_at = models.DateTimeField('Начало чтения', default=timezone.now)
+    reading_time_seconds = models.PositiveIntegerField('Время чтения (сек)', default=0)
+    
+    class Meta:
+        db_table = 'article_snapshots'
+        verbose_name = 'Снапшот статьи'
+        verbose_name_plural = 'Снапшоты статей'
+    
+    def __str__(self):
+        return f"Снапшот: {self.article_title} - {self.user_step_progress.user_flow.user.name}" 

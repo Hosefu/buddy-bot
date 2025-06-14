@@ -29,6 +29,7 @@ from apps.common.permissions import (
     IsActiveUser, IsModerator, IsBuddyOrModerator, CanManageFlow,
     CanViewUserProgress, CanAccessFlowStep
 )
+from .services import FlowService, FlowProgressService
 
 
 # ========== Представления для обычных пользователей (API /my/) ==========
@@ -173,32 +174,24 @@ class FlowStepReadView(APIView):
             if step_progress.status == UserStepProgress.StepStatus.AVAILABLE:
                 step_progress.status = UserStepProgress.StepStatus.IN_PROGRESS
                 step_progress.started_at = timezone.now()
+                step_progress.save()
             
             # Отмечаем статью как прочитанную
             if step.step_type == FlowStep.StepType.ARTICLE and not step_progress.article_read_at:
-                step_progress.article_read_at = timezone.now()
+                # Используем сервис для завершения этапа со статьей
+                step_progress = FlowService.complete_article_step(user_flow, step)
                 
-                # Если это только статья, завершаем этап
-                if step.step_type == FlowStep.StepType.ARTICLE:
-                    step_progress.status = UserStepProgress.StepStatus.COMPLETED
-                    step_progress.completed_at = timezone.now()
-                    
-                    # Записываем действие
-                    FlowAction.objects.create(
-                        user_flow=user_flow,
-                        action_type=FlowAction.ActionType.STEP_COMPLETED,
-                        performed_by=request.user,
-                        metadata={'step_id': step.id, 'step_title': step.title}
-                    )
-                    
-                    # Разблокируем следующий этап
-                    self._unlock_next_step(user_flow, step)
-            
-            step_progress.save()
+                # Записываем действие
+                FlowAction.objects.create(
+                    user_flow=user_flow,
+                    action_type=FlowAction.ActionType.STEP_COMPLETED,
+                    performed_by=request.user,
+                    metadata={'step_id': step.id, 'step_title': step.title}
+                )
             
             return Response({
                 'message': 'Этап отмечен как прочитанный',
-                'step_progress': UserStepProgressSerializer(step_progress).data
+                'status': step_progress.status
             })
             
         except UserStepProgress.DoesNotExist:
@@ -234,18 +227,12 @@ class FlowStepTaskView(APIView):
     
     def get(self, request, flow_id, step_id):
         """
-        Получение задания для этапа
+        Получает задание для этапа
         """
         step = self.get_step(flow_id, step_id)
-        
-        if step.step_type != FlowStep.StepType.TASK:
+        if not step.task:
             return Response({
                 'error': 'Этап не содержит задания'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not hasattr(step, 'task'):
-            return Response({
-                'error': 'Задание не найдено'
             }, status=status.HTTP_404_NOT_FOUND)
         
         serializer = TaskSerializer(step.task, context={'request': request})
@@ -253,108 +240,69 @@ class FlowStepTaskView(APIView):
     
     def post(self, request, flow_id, step_id):
         """
-        Отправка ответа на задание
+        Отправляет ответ на задание
         """
         step = self.get_step(flow_id, step_id)
-        user_flow = self.get_user_flow(flow_id)
-        
-        if step.step_type != FlowStep.StepType.TASK:
+        if not step.task:
             return Response({
                 'error': 'Этап не содержит задания'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not hasattr(step, 'task'):
-            return Response({
-                'error': 'Задание не найдено'
             }, status=status.HTTP_404_NOT_FOUND)
         
-        serializer = TaskAnswerSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        user_flow = self.get_user_flow(flow_id)
         
-        answer = serializer.validated_data['answer']
-        task = step.task
-
-        step_progress = get_object_or_404(
-            UserStepProgress,
-            user_flow=user_flow,
-            flow_step=step
-        )
-        
-        # Создаем снимок для истории
-        with transaction.atomic():
-            task_snapshot = TaskSnapshot.objects.create(
-                user_step_progress=step_progress,
-                task_title=task.title,
-                task_description=task.description,
-                task_instruction=task.instruction,
-                task_code_word=task.code_word,
-                task_hint=task.hint,
-                user_answer=answer,
-                is_correct=answer.lower() == task.code_word.lower(),
-                attempts_count=1
-            )
-        
-        # Проверяем ответ
-        is_correct = answer.lower() == task.code_word.lower()
-        
-        # Обновляем прогресс
+        # Проверяем, не завершен ли уже этап
         step_progress = UserStepProgress.objects.get(
             user_flow=user_flow,
             flow_step=step
         )
         
-        if is_correct:
-            step_progress.status = UserStepProgress.StepStatus.COMPLETED
-            step_progress.completed_at = timezone.now()
-            
-            # Записываем действие
-            FlowAction.objects.create(
-                user_flow=user_flow,
-                action_type=FlowAction.ActionType.STEP_COMPLETED,
-                performed_by=request.user,
-                metadata={'step_id': step.id, 'step_title': step.title}
-            )
-            
-            # Разблокируем следующий этап
-            self._unlock_next_step(user_flow, step)
+        if step_progress.status == UserStepProgress.StepStatus.COMPLETED:
+            return Response({
+                'error': 'Этап уже завершен'
+            }, status=status.HTTP_400_BAD_REQUEST)
         
-        step_progress.save()
+        # Валидируем ответ
+        serializer = TaskAnswerSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Проверяем ответ и обновляем прогресс
+        progress, is_correct = FlowService.complete_task_step(
+            user_flow=user_flow,
+            step=step,
+            user_answer=serializer.validated_data['answer']
+        )
+        
+        # Записываем действие
+        FlowAction.objects.create(
+            user_flow=user_flow,
+            action_type=FlowAction.ActionType.TASK_ANSWERED,
+            performed_by=request.user,
+            metadata={
+                'step_id': step.id,
+                'step_title': step.title,
+                'is_correct': is_correct
+            }
+        )
         
         return Response({
             'is_correct': is_correct,
-            'message': 'Правильно!' if is_correct else 'Неправильно, попробуйте еще раз',
-            'step_progress': UserStepProgressSerializer(step_progress).data
+            'status': progress.status
         })
     
     def get_step(self, flow_id, step_id):
-        """Получает этап с проверкой доступности"""
+        """Получает этап с проверкой доступа"""
         flow = get_object_or_404(Flow, id=flow_id, is_active=True)
-        return get_object_or_404(FlowStep, id=step_id, flow=flow, is_active=True)
+        step = get_object_or_404(FlowStep, id=step_id, flow=flow, is_active=True)
+        return step
     
     def get_user_flow(self, flow_id):
         """Получает UserFlow для текущего пользователя"""
-        flow = get_object_or_404(Flow, id=flow_id, is_active=True)
-        return get_object_or_404(UserFlow, user=self.request.user, flow=flow)
-    
-    def _unlock_next_step(self, user_flow, current_step):
-        """Разблокирует следующий этап"""
-        next_step = FlowStep.objects.filter(
-            flow=current_step.flow,
-            order=current_step.order + 1,
-            is_active=True
-        ).first()
-        
-        if next_step:
-            next_progress, created = UserStepProgress.objects.get_or_create(
-                user_flow=user_flow,
-                flow_step=next_step,
-                defaults={'status': UserStepProgress.StepStatus.AVAILABLE}
-            )
-            
-            if next_progress.status == UserStepProgress.StepStatus.LOCKED:
-                next_progress.status = UserStepProgress.StepStatus.AVAILABLE
-                next_progress.save()
+        return get_object_or_404(
+            UserFlow,
+            flow_id=flow_id,
+            user=self.request.user
+        )
 
 
 class FlowStepQuizView(APIView):

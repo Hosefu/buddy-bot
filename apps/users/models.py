@@ -81,6 +81,15 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         blank=True
     )
     
+    # Роли пользователя
+    roles = models.ManyToManyField(
+        'Role',
+        related_name='users',
+        blank=True,
+        verbose_name='Роли',
+        help_text='Роли пользователя в системе'
+    )
+    
     # Менеджер пользователей
     objects = UserManager()
     
@@ -118,14 +127,11 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     
     def has_role(self, role_name):
         """Проверяет, имеет ли пользователь определенную роль"""
-        return self.user_roles.filter(
-            role__name=role_name,
-            is_active=True
-        ).exists()
+        return self.roles.filter(name=role_name, is_active=True).exists()
     
     def get_active_roles(self):
         """Возвращает список активных ролей пользователя"""
-        return self.user_roles.filter(is_active=True).select_related('role')
+        return self.roles.filter(is_active=True)
 
 
 class Role(BaseModel, ActiveModel):
