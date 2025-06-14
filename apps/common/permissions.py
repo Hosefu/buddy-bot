@@ -3,6 +3,8 @@
 """
 from rest_framework import permissions
 from django.db import models
+from functools import wraps
+from .responses import APIResponse
 
 
 class IsOwnerOrReadOnly(permissions.BasePermission):
@@ -34,52 +36,37 @@ class IsAuthorOrReadOnly(permissions.BasePermission):
         return hasattr(obj, 'author') and obj.author == request.user
 
 
-class HasRole(permissions.BasePermission):
-    """
-    Базовое разрешение для проверки роли пользователя
-    """
+class BaseRolePermission(permissions.BasePermission):
+    """Базовый класс для ролевых разрешений"""
     required_roles = []
     
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
             return False
-        
-        # Если роли не указаны, разрешаем доступ всем аутентифицированным
-        if not self.required_roles:
-            return True
-        
-        # Проверяем наличие любой из требуемых ролей
-        return any(
-            request.user.has_role(role) for role in self.required_roles
-        )
+        return request.user.has_any_role(self.required_roles)
 
 
-class IsModerator(HasRole):
-    """
-    Разрешение только для модераторов
-    """
+class IsUser(BaseRolePermission):
+    """Разрешение для обычных пользователей"""
+    required_roles = ['user', 'buddy', 'moderator']
+
+
+class IsBuddy(BaseRolePermission):
+    """Разрешение для бадди"""
+    required_roles = ['buddy', 'moderator']
+
+
+class IsModerator(BaseRolePermission):
+    """Разрешение для модераторов"""
     required_roles = ['moderator']
 
 
-class IsBuddy(HasRole):
-    """
-    Разрешение только для бадди
-    """
-    required_roles = ['buddy']
-
-
-class IsBuddyOrModerator(HasRole):
+class IsBuddyOrModerator(BaseRolePermission):
     """
     Разрешение для бадди или модераторов
     """
     required_roles = ['buddy', 'moderator']
-
-
-class IsUser(HasRole):
-    """
-    Разрешение для обычных пользователей
-    """
-    required_roles = ['user']
 
 
 class IsActiveUser(permissions.BasePermission):
@@ -279,3 +266,19 @@ class ReadOnlyPermission(permissions.BasePermission):
     
     def has_permission(self, request, view):
         return request.method in permissions.SAFE_METHODS
+
+
+def require_role(*roles):
+    """Декоратор для проверки ролей в методах"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, request, *args, **kwargs):
+            if not request.user.has_any_role(roles):
+                return APIResponse.error(
+                    message="Недостаточно прав",
+                    error_code="insufficient_permissions",
+                    status_code=403
+                )
+            return func(self, request, *args, **kwargs)
+        return wrapper
+    return decorator

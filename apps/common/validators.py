@@ -6,6 +6,7 @@ from django.core.validators import BaseValidator
 from django.core.exceptions import ValidationError
 from django.utils.deconstruct import deconstructible
 from django.utils.translation import gettext_lazy as _
+from typing import Any, Optional
 
 
 @deconstructible
@@ -430,3 +431,52 @@ def validate_tags_list(value):
                 'Тег может содержать только буквы, цифры, дефисы и подчеркивания',
                 code='invalid_tag_format'
             )
+
+
+class TelegramValidator:
+    """Валидатор данных Telegram"""
+    
+    @staticmethod
+    def validate_telegram_id(value: str) -> str:
+        """Валидация Telegram ID"""
+        if not value or not value.isdigit():
+            raise ValidationError("Неверный формат Telegram ID")
+        return value
+    
+    @staticmethod
+    def validate_username(value: str) -> str:
+        """Валидация Telegram username"""
+        if value and not re.match(r'^[a-zA-Z0-9_]{5,32}$', value):
+            raise ValidationError("Неверный формат Telegram username")
+        return value
+
+
+class ContentValidator:
+    """Валидатор контента"""
+    
+    @staticmethod
+    def validate_title(value: str) -> str:
+        """Валидация заголовка"""
+        if not value or len(value.strip()) < 3:
+            raise ValidationError("Заголовок должен содержать минимум 3 символа")
+        if len(value) > 255:
+            raise ValidationError("Заголовок не должен превышать 255 символов")
+        return value.strip()
+    
+    @staticmethod
+    def validate_content(value: str) -> str:
+        """Валидация контента"""
+        if not value or len(value.strip()) < 10:
+            raise ValidationError("Контент должен содержать минимум 10 символов")
+        return value.strip()
+    
+    @staticmethod
+    def validate_summary(value: Optional[str]) -> Optional[str]:
+        """Валидация краткого описания"""
+        if value is not None:
+            if len(value.strip()) < 10:
+                raise ValidationError("Краткое описание должно содержать минимум 10 символов")
+            if len(value) > 500:
+                raise ValidationError("Краткое описание не должно превышать 500 символов")
+            return value.strip()
+        return None

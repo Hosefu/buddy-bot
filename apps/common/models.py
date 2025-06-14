@@ -13,11 +13,13 @@ class TimestampedModel(models.Model):
     created_at = models.DateTimeField(
         'Дата создания',
         auto_now_add=True,
+        db_index=True,
         help_text='Автоматически устанавливается при создании записи'
     )
     updated_at = models.DateTimeField(
         'Дата обновления',
         auto_now=True,
+        db_index=True,
         help_text='Автоматически обновляется при изменении записи'
     )
     
@@ -33,6 +35,7 @@ class SoftDeleteModel(models.Model):
     is_deleted = models.BooleanField(
         'Удалено',
         default=False,
+        db_index=True,
         help_text='Помечает запись как удаленную без физического удаления'
     )
     deleted_at = models.DateTimeField(
@@ -42,13 +45,17 @@ class SoftDeleteModel(models.Model):
         help_text='Время когда запись была помечена как удаленная'
     )
     
-    def delete(self, using=None, keep_parents=False):
-        """
-        Переопределяем delete для мягкого удаления
-        """
+    def soft_delete(self):
+        """Мягкое удаление объекта"""
         self.is_deleted = True
         self.deleted_at = timezone.now()
-        self.save(using=using)
+        self.save(update_fields=['is_deleted', 'deleted_at'])
+    
+    def restore(self):
+        """Восстановление объекта"""
+        self.is_deleted = False
+        self.deleted_at = None
+        self.save(update_fields=['is_deleted', 'deleted_at'])
     
     def hard_delete(self):
         """
