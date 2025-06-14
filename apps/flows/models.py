@@ -481,6 +481,10 @@ class UserFlow(BaseModel):
         if self.status in [self.FlowStatus.IN_PROGRESS, self.FlowStatus.PAUSED]:
             self.status = self.FlowStatus.COMPLETED
             self.completed_at = timezone.now()
+            # Если по какой-то причине поток завершился без старта,
+            # установим и время старта, чтобы не было ошибок
+            if not self.started_at:
+                self.started_at = self.created_at
             self.save()
 
 

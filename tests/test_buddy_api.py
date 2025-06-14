@@ -155,8 +155,9 @@ class TestBuddyApi:
         response = api_client.delete(f'/api/buddy/flows/{user_flow_id}/')
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
-        assert not UserFlow.objects.filter(id=user_flow_id).exists()
-        
+        # Проверяем, что объект помечен как удаленный (soft-delete)
+        assert not UserFlow.objects.active().filter(id=user_flow_id).exists()
+
     def test_b_mgmt_06_pause_foreign_flow(self, api_client, buddy_user, user, simple_flow, user_flow_factory):
         """B-MGMT-06: Buddy не может паузить чужой поток → 403."""
         # Создаем поток, где buddy_user не является бадди

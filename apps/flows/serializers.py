@@ -528,54 +528,32 @@ class FlowPauseSerializer(serializers.Serializer):
 
 
 class QuizSubmissionSerializer(serializers.Serializer):
-    """
-    Сериализатор для отправки ответа на вопрос квиза
-    """
-    answer_id = serializers.IntegerField()
-    
-    def validate_answer_id(self, value):
-        """Валидация ответа"""
-        try:
-            answer = QuizAnswer.objects.get(id=value)
-            return answer
-        except QuizAnswer.DoesNotExist:
-            raise serializers.ValidationError("Ответ не найден")
-    
+    """Сериализатор для ответа на вопрос квиза."""
+    answer_id = serializers.PrimaryKeyRelatedField(
+        queryset=QuizAnswer.objects.all(),
+        label="ID ответа"
+    )
+
     def validate(self, data):
         """Дополнительная валидация"""
         answer = data['answer_id']
         user_flow = self.context['user_flow']
         question = self.context['question']
         
-        # Проверяем, что ответ принадлежит этому вопросу
+        # Проверяем, что ответ принадлежит правильному вопросу
         if answer.question != question:
-            raise serializers.ValidationError("Ответ не принадлежит этому вопросу")
-        
-        # Проверяем, что пользователь еще не отвечал на этот вопрос
-        if UserQuizAnswer.objects.filter(
-            user_flow=user_flow,
-            question=question
-        ).exists():
-            raise serializers.ValidationError("Вы уже отвечали на этот вопрос")
-        
-        return data
-    
-    def save(self):
-        """Сохранение ответа пользователя"""
-        answer = self.validated_data['answer_id']
-        user_flow = self.context['user_flow']
-        question = self.context['question']
-        
-        # Сохраняем ответ пользователя
-        user_answer = UserQuizAnswer.objects.create(
-            user_flow=user_flow,
-            question=question,
-            selected_answer=answer,
-            is_correct=answer.is_correct
-        )
-        
-        return user_answer
+            raise serializers.ValidationError(
+                "Выбранный ответ не принадлежит данному вопросу."
+            )
+            
+        # Проверяем, что пользователь проходит именно этот поток
+        if user_flow.flow != question.quiz.flow_step.flow:
+            raise serializers.ValidationError(
+                "Пользователь не проходит данный поток."
+            )
 
+        return data
+        
 
 class MyFlowProgressSerializer(serializers.ModelSerializer):
     """

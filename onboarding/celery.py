@@ -6,16 +6,15 @@ from celery import Celery
 from django.conf import settings
 from django.utils import timezone
 
-# Устанавливаем модуль настроек Django для Celery
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'onboarding.settings')
-
 # Создаем экземпляр Celery
 app = Celery('onboarding')
 
 # Загружаем конфигурацию из настроек Django
+# Пространство имен 'CELERY' означает, что все настройки Celery в settings.py
+# должны начинаться с CELERY_, например, CELERY_BROKER_URL
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Автоматически обнаруживаем задачи в приложениях
+# Автоматически обнаруживаем файлы tasks.py в приложениях Django
 app.autodiscover_tasks()
 
 # Конфигурация периодических задач

@@ -406,12 +406,18 @@ class QuizQuestionAnswerView(APIView):
         
         question = get_object_or_404(QuizQuestion, id=question_id, quiz=step.quiz)
         
-        serializer = QuizSubmissionSerializer(data=request.data)
+        serializer = QuizSubmissionSerializer(
+            data=request.data,
+            context={
+                'request': request, 
+                'user_flow': user_flow,
+                'question': question
+            }
+        )
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        answer_id = serializer.validated_data['answer_id']
-        answer = get_object_or_404(QuizAnswer, id=answer_id, question=question)
+        answer = serializer.validated_data['answer_id']
         
         # Сохраняем ответ пользователя
         user_answer, created = UserQuizAnswer.objects.update_or_create(

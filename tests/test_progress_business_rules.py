@@ -44,6 +44,7 @@ class TestProgressBusinessRules:
         first_step_progress.save()
 
         # Теперь второй шаг должен быть доступен
+        second_step_progress.refresh_from_db()
         assert second_step_progress.is_accessible is True
 
     def test_prg_03_flow_completed_after_last_step(self, in_progress_flow):

@@ -1,6 +1,8 @@
 import pytest
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
+from unittest.mock import MagicMock
+import requests
 from apps.flows.models import Flow, FlowStep, UserFlow, Task, Quiz, QuizQuestion, QuizAnswer
 from apps.guides.models import Article
 from apps.users.models import Role, UserRole
@@ -76,16 +78,20 @@ def flow_factory(db):
     return create_flow
 
 @pytest.fixture
-def article_factory(db):
+def article_factory(db, user_factory):
     """Фабрика для создания статей."""
     def create_article(**kwargs):
         defaults = {
             'title': 'Test Article',
             'content': 'Some content here'
         }
+        if 'author' not in kwargs:
+            defaults['author'] = user_factory()
+        
         defaults.update(kwargs)
+
         # Ensure slug is unique if not provided
-        if 'slug' not in kwargs:
+        if 'slug' not in defaults:
             base_slug = defaults['title'].lower().replace(' ', '-')
             slug = base_slug
             i = 1
@@ -93,6 +99,12 @@ def article_factory(db):
                 slug = f"{base_slug}-{i}"
                 i += 1
             defaults['slug'] = slug
+
+        # По умолчанию делаем статью опубликованной для тестов API
+        if 'is_published' not in defaults:
+            defaults['is_published'] = True
+        if defaults['is_published'] and 'published_at' not in defaults:
+            defaults['published_at'] = timezone.now()
             
         return Article.objects.create(**defaults)
     return create_article
@@ -139,4 +151,18 @@ def flow_with_steps(flow_factory, flow_step_factory, article_factory):
     QuizAnswer.objects.create(question=question, answer_text='2', is_correct=True, order=1)
     QuizAnswer.objects.create(question=question, answer_text='3', is_correct=False, order=2)
     
-    return flow 
+    return flow
+
+@pytest.fixture(autouse=True)
+def mock_telegram_request(mocker):
+    """
+    Мокает запросы к API Telegram во всех тестах.
+    Это предотвращает реальные HTTP-запросы во время тестов.
+    """
+    mock_response = MagicMock(spec=requests.Response)
+    mock_response.status_code = 200
+    mock_response.json.return_value = {'ok': True, 'result': {}}
+    mock_response.text = '{"ok": true, "result": {}}'
+
+    # Мокаем метод post в модуле, где он используется (в задачах Celery)
+    return mocker.patch('apps.users.tasks.requests.post', return_value=mock_response) 

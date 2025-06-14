@@ -133,6 +133,7 @@ class ArticleDetailView(generics.RetrieveUpdateDestroyAPIView):
         
         # Увеличиваем счетчик
         instance.increment_view_count()
+        instance.refresh_from_db()
         
         serializer = self.get_serializer(instance)
         return Response(serializer.data)

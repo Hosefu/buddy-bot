@@ -307,20 +307,26 @@ def auto_assign_flows_to_new_user(self, user_id):
         mandatory_flows = Flow.objects.mandatory()
         
         # Находим потоки для отдела пользователя
-        department_flows = Flow.objects.filter(
-            auto_assign_departments__contains=[user.department]
-        ) if user.department else Flow.objects.none()
+        department_flows = Flow.objects.none()
+        if user.department:
+            department_flows = Flow.objects.filter(
+                auto_assign_departments__contains=[user.department]
+            )
+
+        # Объединяем ID потоков, чтобы избежать проблем с .union() в SQLite
+        mandatory_ids = list(mandatory_flows.values_list('id', flat=True))
+        department_ids = list(department_flows.values_list('id', flat=True))
         
-        # Объединяем потоки
-        flows_to_assign = mandatory_flows.union(department_flows)
+        # Убираем дубликаты и получаем уникальные ID
+        flow_ids_to_assign = set(mandatory_ids + department_ids)
         
         assigned_count = 0
-        for flow in flows_to_assign:
+        for flow_id in flow_ids_to_assign:
             # Проверяем, не назначен ли уже поток
-            if not UserFlow.objects.filter(user=user, flow=flow).exists():
+            if not UserFlow.objects.filter(user=user, flow_id=flow_id).exists():
                 UserFlow.objects.create_with_steps(
                     user=user,
-                    flow=flow,
+                    flow_id=flow_id,
                     expected_completion_date=timezone.now().date() + timedelta(days=30)
                 )
                 assigned_count += 1
