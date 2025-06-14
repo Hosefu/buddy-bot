@@ -51,6 +51,8 @@ pytest-django==4.9.0
 pytest-cov==5.0.0
 pytest-mock==3.14.0
 factory-boy==3.3.1
+pytest-html==4.1.1
+pytest-metadata==3.1.1
 
 # Линтеры и форматеры (для разработки)
 black==24.10.0

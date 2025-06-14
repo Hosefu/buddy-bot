@@ -274,19 +274,26 @@ class FlowStepTaskView(APIView):
         
         answer = serializer.validated_data['answer']
         task = step.task
-        
-        # Создаем снапшот задания
-        task_snapshot = TaskSnapshot.objects.create(
-            user_progress=user_flow,
-            task_title=task.title,
-            task_description=task.description,
-            task_instruction=task.instruction,
-            task_code_word=task.code_word,
-            task_hint=task.hint,
-            user_answer=answer,
-            is_correct=answer.lower() == task.code_word.lower(),
-            attempts_count=1
+
+        step_progress = get_object_or_404(
+            UserStepProgress,
+            user_flow=user_flow,
+            flow_step=step
         )
+        
+        # Создаем снимок для истории
+        with transaction.atomic():
+            task_snapshot = TaskSnapshot.objects.create(
+                user_step_progress=step_progress,
+                task_title=task.title,
+                task_description=task.description,
+                task_instruction=task.instruction,
+                task_code_word=task.code_word,
+                task_hint=task.hint,
+                user_answer=answer,
+                is_correct=answer.lower() == task.code_word.lower(),
+                attempts_count=1
+            )
         
         # Проверяем ответ
         is_correct = answer.lower() == task.code_word.lower()

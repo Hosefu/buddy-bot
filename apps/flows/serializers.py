@@ -225,13 +225,13 @@ class UserQuizAnswerSnapshotSerializer(serializers.ModelSerializer):
 class QuizQuestionSnapshotSerializer(serializers.ModelSerializer):
     """Сериализатор снапшота вопроса квиза"""
     answer_options = QuizAnswerSnapshotSerializer(many=True, read_only=True)
-    user_answer = UserQuizAnswerSnapshotSerializer(read_only=True)
+    user_answers = UserQuizAnswerSnapshotSerializer(many=True, read_only=True)
     
     class Meta:
         model = QuizQuestionSnapshot
         fields = [
             'id', 'question_text', 'question_order', 'explanation',
-            'answer_options', 'user_answer'
+            'answer_options', 'user_answers'
         ]
 
 

@@ -20,9 +20,9 @@ class TaskSnapshot(BaseModel):
     # Снапшот данных задания
     task_title = models.CharField('Название задания', max_length=255)
     task_description = models.TextField('Описание задания')
-    task_instruction = models.TextField('Инструкция')
+    task_instruction = models.TextField('Инструкция', blank=True, null=True)
     task_code_word = models.CharField('Кодовое слово', max_length=100)
-    task_hint = models.TextField('Подсказка', blank=True)
+    task_hint = models.TextField('Подсказка', blank=True, null=True)
     
     # Ответ пользователя
     user_answer = models.CharField('Ответ пользователя', max_length=255)
