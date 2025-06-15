@@ -21,8 +21,8 @@ def started_user_flow(user, flow_with_steps, user_flow_factory):
 def unlocked_task_step_progress(started_user_flow):
     """Фикстура, где первый шаг пройден и таск-шаг доступен."""
     flow = started_user_flow.flow
-    article_step = flow.flow_steps.get(step_type=FlowStep.StepType.ARTICLE)
-    task_step = flow.flow_steps.get(step_type=FlowStep.StepType.TASK)
+    article_step = flow.flow_steps.order_by('order')[0]
+    task_step = flow.flow_steps.order_by('order')[1]
 
     # Завершаем первый шаг
     progress, _ = UserStepProgress.objects.get_or_create(user_flow=started_user_flow, flow_step=article_step)
@@ -101,7 +101,7 @@ class TestContentApi:
         """CNT-05: POST /flows/{fid}/steps/{sid}/read/ — первый вызов → 201 и article_read_at заполняется."""
         api_client.force_authenticate(user=user)
         flow = started_user_flow.flow
-        step = flow.flow_steps.get(step_type=FlowStep.StepType.ARTICLE)
+        step = flow.flow_steps.order_by('order')[0]
         
         progress = UserStepProgress.objects.get(user_flow=started_user_flow, flow_step=step)
         assert progress.article_read_at is None
@@ -120,7 +120,7 @@ class TestContentApi:
         """CNT-06: Повторный read того же шага → 204 (idempotent)."""
         api_client.force_authenticate(user=user)
         flow = started_user_flow.flow
-        step = flow.flow_steps.get(step_type=FlowStep.StepType.ARTICLE)
+        step = flow.flow_steps.order_by('order')[0]
         
         api_client.post(f'/api/flows/{flow.id}/steps/{step.id}/read/')
         # View не возвращает 204, он идемпотентен по результату, но не по коду.
@@ -132,11 +132,11 @@ class TestContentApi:
         api_client.force_authenticate(user=user)
         flow = started_user_flow.flow
         
-        task_step = flow.flow_steps.get(step_type=FlowStep.StepType.TASK)
+        task_step = flow.flow_steps.order_by('order')[1]
         response = api_client.get(f'/api/flows/{flow.id}/steps/{task_step.id}/task/')
         assert response.status_code == status.HTTP_403_FORBIDDEN
         
-        quiz_step = flow.flow_steps.get(step_type=FlowStep.StepType.QUIZ)
+        quiz_step = flow.flow_steps.order_by('order')[2]
         response = api_client.get(f'/api/flows/{flow.id}/steps/{quiz_step.id}/quiz/')
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -157,7 +157,7 @@ class TestContentApi:
     def test_cnt_09_10_post_quiz_answer(self, api_client, user_factory, flow_with_steps):
         """CNT-09 & CNT-10: POST quiz answer — правильный/неправильный ответ."""
         flow = flow_with_steps
-        quiz_step = flow.flow_steps.get(step_type=FlowStep.StepType.QUIZ)
+        quiz_step = flow.flow_steps.order_by('order')[2]
         question = quiz_step.quiz.questions.first()
         correct_answer = question.answers.get(is_correct=True)
         incorrect_answer = question.answers.get(is_correct=False)
@@ -193,7 +193,7 @@ class TestContentApi:
         """CNT-11: После последнего правильного ответа квиза шаг переходит в 'completed', UserFlow двигается к следующему шагу."""
         api_client.force_authenticate(user=user)
         flow = started_user_flow.flow
-        quiz_step = flow.flow_steps.get(step_type=FlowStep.StepType.QUIZ)
+        quiz_step = flow.flow_steps.order_by('order')[2]
         question = quiz_step.quiz.questions.first()
         correct_answer = question.answers.get(is_correct=True)
 
@@ -223,7 +223,7 @@ class TestContentApi:
         """CNT-12: Попытка отправить ответ на чужой квиз-вопрос → 404."""
         api_client.force_authenticate(user=another_user)
         flow = started_user_flow.flow
-        quiz_step = flow.flow_steps.get(step_type=FlowStep.StepType.QUIZ)
+        quiz_step = flow.flow_steps.order_by('order')[2]
         question = quiz_step.quiz.questions.first()
         answer = question.answers.first()
 
@@ -237,7 +237,7 @@ class TestContentApi:
     def test_cnt_13_quiz_shuffle(self, api_client, user, flow_factory, flow_step_factory):
         """CNT-13: Проверка shuffle_questions/answers — разный порядок в разных сессиях."""
         flow = flow_factory(title="Shuffle Flow")
-        step = flow_step_factory(flow, step_type=FlowStep.StepType.QUIZ)
+        step = flow_step_factory(flow)
         quiz = Quiz.objects.create(flow_step=step, title="Shuffle Quiz", shuffle_questions=True, shuffle_answers=True)
         
         # Создаем несколько вопросов и ответов

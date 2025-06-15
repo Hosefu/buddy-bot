@@ -110,6 +110,16 @@ class Article(BaseModel, ActiveModel):
         'Содержание',
         help_text='Основное содержание статьи в формате Markdown'
     )
+
+    flow_step = models.OneToOneField(
+        'flows.FlowStep',
+        on_delete=models.CASCADE,
+        related_name='article',
+        verbose_name='Этап потока',
+        null=True,
+        blank=True,
+        help_text='Связанный этап потока'
+    )
     
     # Классификация
     article_type = models.CharField(
@@ -244,7 +254,7 @@ class Article(BaseModel, ActiveModel):
     @property
     def is_used_in_flows(self):
         """Проверяет, используется ли статья в потоках обучения"""
-        return self.flow_steps.filter(is_active=True).exists()
+        return hasattr(self, 'flow_step') and self.flow_step is not None and self.flow_step.is_active
     
     def increment_view_count(self):
         """Увеличивает счетчик просмотров"""

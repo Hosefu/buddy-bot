@@ -18,7 +18,7 @@ class FlowStepInline(admin.TabularInline):
     """
     model = FlowStep
     extra = 0
-    fields = ['title', 'step_type', 'order', 'is_required', 'is_active']
+    fields = ['title', 'order', 'is_active']
     readonly_fields = ['created_at']
     ordering = ['order']
 
@@ -29,22 +29,22 @@ class FlowAdmin(admin.ModelAdmin):
     Административная панель для потоков обучения
     """
     list_display = [
-        'title', 'total_steps_display', 'required_steps_display',
+        'title', 'total_steps_display',
         'is_mandatory', 'is_active', 'assignments_count', 'created_at'
     ]
     list_filter = ['is_mandatory', 'is_active', 'created_at']
     search_fields = ['title', 'description']
-    readonly_fields = ['created_at', 'updated_at', 'total_steps', 'required_steps']
+    readonly_fields = ['created_at', 'updated_at', 'total_steps']
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('title', 'description', 'estimated_duration_hours')
+            'fields': ('title', 'description')
         }),
         ('Настройки', {
             'fields': ('is_mandatory', 'auto_assign_departments', 'is_active')
         }),
         ('Статистика', {
-            'fields': ('total_steps', 'required_steps'),
+            'fields': ('total_steps',),
             'classes': ('collapse',)
         }),
         ('Временные метки', {
@@ -59,9 +59,6 @@ class FlowAdmin(admin.ModelAdmin):
         return obj.total_steps
     total_steps_display.short_description = 'Всего этапов'
     
-    def required_steps_display(self, obj):
-        return obj.required_steps
-    required_steps_display.short_description = 'Обязательных'
     
     def assignments_count(self, obj):
         """Количество назначений потока"""
@@ -102,22 +99,18 @@ class FlowStepAdmin(admin.ModelAdmin):
     Административная панель для этапов потоков
     """
     list_display = [
-        'title', 'flow_title', 'step_type', 'order', 
-        'is_required', 'is_active', 'estimated_time_minutes'
+        'title', 'flow_title', 'order', 'is_active'
     ]
-    list_filter = ['step_type', 'is_required', 'is_active', 'flow']
+    list_filter = ['is_active', 'flow']
     search_fields = ['title', 'description', 'flow__title']
     readonly_fields = ['created_at', 'updated_at']
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('flow', 'title', 'description', 'step_type', 'order')
+            'fields': ('flow', 'title', 'description', 'order')
         }),
-        ('Настройки', {
-            'fields': ('is_required', 'estimated_time_minutes', 'is_active')
-        }),
-        ('Контент', {
-            'fields': ('article',)
+        ('Статус', {
+            'fields': ('is_active',)
         }),
         ('Временные метки', {
             'fields': ('created_at', 'updated_at'),

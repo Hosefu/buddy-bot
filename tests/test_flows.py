@@ -13,9 +13,9 @@ pytestmark = pytest.mark.django_db
 def flow_with_steps(flow_factory, flow_step_factory):
     """Фикстура для флоу с несколькими шагами и заданным временем."""
     flow = flow_factory(title="Flow with steps")
-    flow_step_factory(flow=flow, title="Step 1", estimated_time_minutes=150)  # 2.5 часа -> 2 дня (по 2ч/день)
-    flow_step_factory(flow=flow, title="Step 2", estimated_time_minutes=200)  # 3.3 часа -> 2 дня
-    flow_step_factory(flow=flow, title="Step 3 (inactive)", estimated_time_minutes=60, is_active=False)
+    flow_step_factory(flow=flow, title="Step 1")
+    flow_step_factory(flow=flow, title="Step 2")
+    flow_step_factory(flow=flow, title="Step 3 (inactive)", is_active=False)
     # Итого: 350 минут = 5.83 часа.
     # При 2 часах в день (120 минут), это 350 / 120 = 2.91, округляем вверх до 3 рабочих дней.
     return flow
@@ -35,19 +35,16 @@ class TestFlowModel:
         """Тест расчета дедлайна для флоу с шагами."""
         flow = flow_with_steps
         start_date = date(2024, 1, 1)  # Понедельник
-        # 3 рабочих дня от 1 января: 2, 3, 4 января.
-        expected_date = date(2024, 1, 4)
+        # 1 рабочий день от 1 января: 2 января.
+        expected_date = date(2024, 1, 2)
         assert flow.calculate_expected_completion_date(start_date) == expected_date
 
     def test_calculate_completion_date_with_holidays(self, flow_with_steps, setup_calendar):
         """Тест расчета с учетом праздников."""
         flow = flow_with_steps
         start_date = date(2024, 1, 5)  # Пятница
-        # 3 рабочих дня от 5 января:
-        # 1. 9 января (вт) - 8-е выходной по календарю
-        # 2. 10 января (ср)
-        # 3. 11 января (чт)
-        expected_date = date(2024, 1, 11)
+        # 1 рабочий день от 5 января -> 9 января (8-е выходной)
+        expected_date = date(2024, 1, 9)
         assert flow.calculate_expected_completion_date(start_date) == expected_date
 
 

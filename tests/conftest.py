@@ -221,7 +221,6 @@ def flow_step_factory(db):
         defaults = {
             'title': 'Test Step',
             'order': flow.get_next_step_order(),
-            'step_type': FlowStep.StepType.ARTICLE
         }
         defaults.update(kwargs)
         return FlowStep.objects.create(flow=flow, **defaults)
@@ -244,13 +243,13 @@ def flow_with_steps(flow_factory, flow_step_factory, article_factory):
     """Поток с несколькими шагами разного типа."""
     flow = flow_factory(title='Complex Flow', description='Flow with multiple steps')
     
-    article1 = article_factory(title='Article 1', slug='article-1')
-    step1 = flow_step_factory(flow, title='Step 1: Article', step_type=FlowStep.StepType.ARTICLE, article=article1, order=1)
-    
-    step2 = flow_step_factory(flow, title='Step 2: Task', step_type=FlowStep.StepType.TASK, order=2)
+    step1 = flow_step_factory(flow, title='Step 1: Article', order=1)
+    article1 = article_factory(title='Article 1', slug='article-1', flow_step=step1)
+
+    step2 = flow_step_factory(flow, title='Step 2: Task', order=2)
     task = Task.objects.create(flow_step=step2, title='Task 1', description='Do the task', code_word='secret')
-    
-    step3 = flow_step_factory(flow, title='Step 3: Quiz', step_type=FlowStep.StepType.QUIZ, order=3)
+
+    step3 = flow_step_factory(flow, title='Step 3: Quiz', order=3)
     quiz = Quiz.objects.create(flow_step=step3, title='Quiz 1')
     question = QuizQuestion.objects.create(quiz=quiz, question='What is 1+1?', order=1)
     QuizAnswer.objects.create(question=question, answer_text='2', is_correct=True, order=1)
