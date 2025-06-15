@@ -13,3 +13,10 @@ __pycache__/
 staticfiles/
 media/
 logs/
+# Coverage
+.coverage
+htmlcov/
+
+# Frontend
+frontend/node_modules/
+frontend/package-lock.json
