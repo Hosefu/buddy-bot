@@ -51,6 +51,20 @@ services:
     restart: unless-stopped
     command: ["web"]
 
+  # Frontend Vite dev server
+  frontend:
+    build:
+      context: ./frontend
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env.example
+    depends_on:
+      - web
+    restart: unless-stopped
+
   # Celery worker для фоновых задач
   celery-worker:
     build: 
