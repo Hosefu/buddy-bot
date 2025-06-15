@@ -142,7 +142,7 @@ def user_factory(db):
         # Если нужна дополнительная роль (buddy, moderator), назначаем ее.
         if role and role != Role.RoleChoices.USER:
             role_obj = Role.objects.get(name=role)
-            UserRole.objects.get_or_create(user=user, role=role_obj)
+            user.roles.add(role_obj)
         
         # Для удобства доступа в тестах
         user.role_name = role or Role.RoleChoices.USER

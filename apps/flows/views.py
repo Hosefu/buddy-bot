@@ -276,7 +276,7 @@ class FlowStepTaskView(APIView):
         # Записываем действие
         FlowAction.objects.create(
             user_flow=user_flow,
-            action_type=FlowAction.ActionType.TASK_ANSWERED,
+            action_type=FlowAction.ActionType.TASK_COMPLETED,
             performed_by=request.user,
             metadata={
                 'step_id': step.id,

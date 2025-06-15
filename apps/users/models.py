@@ -129,6 +129,10 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
         """Проверяет, имеет ли пользователь определенную роль"""
         return self.roles.filter(name=role_name, is_active=True).exists()
     
+    def has_any_role(self, role_names):
+        """Проверяет, имеет ли пользователь хотя бы одну из указанных ролей"""
+        return self.roles.filter(name__in=role_names, is_active=True).exists()
+    
     def get_active_roles(self):
         """Возвращает список активных ролей пользователя"""
         return self.roles.filter(is_active=True)

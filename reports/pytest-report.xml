@@ -1,1 +1,857 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="39" time="2.067" timestamp="2025-06-14T17:50:19.011883+03:00" hostname="67b4abf5fbef"><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_01_get_buddy_flows" time="1.224" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_02_get_buddy_users" time="0.017" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_03_start_flow_for_user" time="0.017" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_04_start_flow_no_deadline" time="0.013" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_05_start_flow_already_active" time="0.012" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_01_get_my_managed_flows" time="0.019" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_02_get_ward_progress" time="0.022" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_03_pause_flow" time="0.015" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_04_resume_flow" time="0.016" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_05_delete_flow" time="0.016" /><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_06_pause_foreign_flow" time="0.011" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_01_get_flow_details_unauthorized" time="0.002" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_01_get_flow_details_authenticated" time="0.007" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_04_get_article_details" time="0.014" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_02_get_flow_steps_list" time="0.024" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_03_get_flow_steps_order" time="0.022" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_05_read_step_first_time" time="0.066" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_06_read_step_second_time" time="0.034" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_07_get_content_before_accessible" time="0.020" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_08_get_task_after_accessible" time="0.025" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_09_10_post_quiz_answer" time="0.056" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_11_quiz_completion_unlocks_next_step" time="0.042" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_12_answer_foreign_quiz_question" time="0.019" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_13_quiz_shuffle" time="0.052" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_01_get_my_flows_unauthorized" time="0.002" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_01_get_my_flows_list" time="0.011" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_02_get_my_progress_aggregated" time="0.022" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_03_get_progress_for_my_flow" time="0.011" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_03_get_progress_for_other_flow" time="0.009" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_01_first_step_available_on_start" time="0.016" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_02_second_step_locked" time="0.021" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_03_flow_completed_after_last_step" time="0.030" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_04_steps_inaccessible_when_paused" time="0.021" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_05_modify_progress_in_paused_state" time="0.022" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_06_estimated_time_sum" time="0.005" /><testcase classname="tests.test_utils" name="test_generate_random_string_default_length" time="0.001" /><testcase classname="tests.test_utils" name="test_generate_random_string_letters_only" time="0.001" /><testcase classname="tests.test_utils" name="test_generate_secure_token_length_and_hex" time="0.001" /><testcase classname="tests.test_utils" name="test_generate_secure_token_uniqueness" time="0.037" /></testsuite></testsuites>
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="13" skipped="0" tests="50" time="3.276" timestamp="2025-06-15T14:40:13.226493+03:00" hostname="7a4c2b013835"><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_01_get_buddy_flows" time="1.688"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b15510&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa3530ed0&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;
+flow_factory = &lt;function flow_factory.&lt;locals&gt;.create_flow at 0xffffa398e7a0&gt;
+
+    def test_b_init_01_get_buddy_flows(self, api_client, buddy_user, flow_factory):
+        """B-INIT-01: GET /api/buddy/flows/ — только is_active=true."""
+        flow_factory(title="Active Flow", is_active=True)
+        flow_factory(title="Inactive Flow", is_active=False)
+    
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.get('/api/buddy/flows/')
+
+tests/test_buddy_api.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:289: in get
+    response = super().get(path, data=data, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:206: in get
+    return self.generic('GET', path, **r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa35b2190&gt;
+request = &lt;rest_framework.request.Request: GET '/api/buddy/flows/'&gt;
+view = &lt;apps.flows.views.BuddyFlowListView object at 0xffffa360b450&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_02_get_buddy_users" time="0.016"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b15a10&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa382dc10&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;
+user_factory = &lt;function user_factory.&lt;locals&gt;.create_user at 0xffffa2fede40&gt;
+
+    def test_b_init_02_get_buddy_users(self, api_client, buddy_user, user_factory):
+        """B-INIT-02: GET /api/buddy/users/ — список всех активных пользователей."""
+        active = user_factory(telegram_id='active_user_for_buddy', name='Active User', is_active=True)
+        inactive = user_factory(telegram_id='inactive_user_for_buddy', name='Inactive User', is_active=False)
+    
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.get('/api/buddy/users/')
+
+tests/test_buddy_api.py:37: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:289: in get
+    response = super().get(path, data=data, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:206: in get
+    return self.generic('GET', path, **r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa382cc50&gt;
+request = &lt;rest_framework.request.Request: GET '/api/buddy/users/'&gt;
+view = &lt;apps.flows.views.BuddyUserListView object at 0xffffa382fad0&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_03_start_flow_for_user" time="0.012"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b15f90&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa37fd710&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;, user = &lt;User: Test User (ID: 100)&gt;
+simple_flow = &lt;Flow: Simple Flow&gt;
+
+    def test_b_init_03_start_flow_for_user(self, api_client, buddy_user, user, simple_flow):
+        """B-INIT-03: POST start с валидными user_id + дедлайном → 201, создаётся UserFlow."""
+        assert not UserFlow.objects.filter(user=user, flow=simple_flow).exists()
+    
+        deadline = date.today() + timedelta(days=14)
+        data = {
+            'user_id': user.id,
+            'expected_completion_date': deadline.isoformat()
+        }
+    
+        api_client.force_authenticate(user=buddy_user)
+        # URL из buddy_urls.py: /api/buddy/flows/&lt;int:pk&gt;/start/
+&gt;       response = api_client.post(f'/api/buddy/flows/{simple_flow.id}/start/', data=data)
+
+tests/test_buddy_api.py:57: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:296: in post
+    response = super().post(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:210: in post
+    return self.generic('POST', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa380b610&gt;
+request = &lt;rest_framework.request.Request: POST '/api/buddy/flows/3/start/'&gt;
+view = &lt;apps.flows.views.BuddyFlowStartView object at 0xffffa3a86a10&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_init_05_start_flow_already_active" time="0.051"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b16290&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa3a80b10&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;, user = &lt;User: Test User (ID: 100)&gt;
+simple_flow = &lt;Flow: Simple Flow&gt;
+user_flow_factory = &lt;function user_flow_factory.&lt;locals&gt;.create_user_flow at 0xffffa2feed40&gt;
+
+    def test_b_init_05_start_flow_already_active(self, api_client, buddy_user, user, simple_flow, user_flow_factory):
+        """B-INIT-05: POST start для уже активного потока того же пользователя → 409."""
+        user_flow_factory(user=user, flow=simple_flow, status=UserFlow.FlowStatus.IN_PROGRESS)
+    
+        data = {
+            'user_id': user.id,
+            'expected_completion_date': (date.today() + timedelta(days=10)).isoformat()
+        }
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.post(f'/api/buddy/flows/{simple_flow.id}/start/', data=data)
+
+tests/test_buddy_api.py:75: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:296: in post
+    response = super().post(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:210: in post
+    return self.generic('POST', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa3869e50&gt;
+request = &lt;rest_framework.request.Request: POST '/api/buddy/flows/4/start/'&gt;
+view = &lt;apps.flows.views.BuddyFlowStartView object at 0xffffa386ae10&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_01_get_my_managed_flows" time="0.015"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b16f90&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa380ac50&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;
+managed_user_flow = &lt;UserFlow: Test User - Simple Flow&gt;
+
+    def test_b_mgmt_01_get_my_managed_flows(self, api_client, buddy_user, managed_user_flow):
+        """B-MGMT-01: GET /api/buddy/my-flows/ — только те, где текущий пользователь — buddy."""
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.get('/api/buddy/my-flows/')
+
+tests/test_buddy_api.py:91: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:289: in get
+    response = super().get(path, data=data, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:206: in get
+    return self.generic('GET', path, **r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa3809990&gt;
+request = &lt;rest_framework.request.Request: GET '/api/buddy/my-flows/'&gt;
+view = &lt;apps.flows.views.BuddyMyFlowsView object at 0xffffa332e4d0&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_02_get_ward_progress" time="0.014"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b17a90&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa3420450&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;
+managed_user_flow = &lt;UserFlow: Test User - Simple Flow&gt;
+
+    def test_b_mgmt_02_get_ward_progress(self, api_client, buddy_user, managed_user_flow):
+        """B-MGMT-02: GET /api/buddy/flows/{pid} — подробный прогресс подопечного."""
+        api_client.force_authenticate(user=buddy_user)
+        # pid - это id UserFlow
+&gt;       response = api_client.get(f'/api/buddy/flows/{managed_user_flow.id}/')
+
+tests/test_buddy_api.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:289: in get
+    response = super().get(path, data=data, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:206: in get
+    return self.generic('GET', path, **r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa3429ad0&gt;
+request = &lt;rest_framework.request.Request: GET '/api/buddy/flows/3/'&gt;
+view = &lt;apps.flows.views.BuddyFlowManageView object at 0xffffa342a250&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_03_pause_flow" time="0.014"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b16850&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa34acb10&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;
+managed_user_flow = &lt;UserFlow: Test User - Simple Flow&gt;
+
+    def test_b_mgmt_03_pause_flow(self, api_client, buddy_user, managed_user_flow):
+        """B-MGMT-03: POST pause — переводит UserFlow.status в paused."""
+        assert managed_user_flow.status == UserFlow.FlowStatus.IN_PROGRESS
+    
+        api_client.force_authenticate(user=buddy_user)
+        # Используем managed_user_flow.id, так как в buddy_urls.py pk - это id UserFlow
+&gt;       response = api_client.post(f'/api/buddy/flows/{managed_user_flow.id}/pause/', {'reason': 'test pause'})
+
+tests/test_buddy_api.py:114: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:296: in post
+    response = super().post(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:210: in post
+    return self.generic('POST', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa3ac6910&gt;
+request = &lt;rest_framework.request.Request: POST '/api/buddy/flows/4/pause/'&gt;
+view = &lt;apps.flows.views.BuddyFlowPauseView object at 0xffffa3ac7f90&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_04_resume_flow" time="0.015"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b17dd0&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa3222dd0&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;
+managed_user_flow = &lt;UserFlow: Test User - Simple Flow&gt;
+
+    def test_b_mgmt_04_resume_flow(self, api_client, buddy_user, managed_user_flow):
+        """B-MGMT-04: POST resume — восстанавливает статус."""
+        managed_user_flow.status = UserFlow.FlowStatus.PAUSED
+        managed_user_flow.paused_by = buddy_user
+        managed_user_flow.save()
+    
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.post(f'/api/buddy/flows/{managed_user_flow.id}/resume/')
+
+tests/test_buddy_api.py:129: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:296: in post
+    response = super().post(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:210: in post
+    return self.generic('POST', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa34f4890&gt;
+request = &lt;rest_framework.request.Request: POST '/api/buddy/flows/5/resume/'&gt;
+view = &lt;apps.flows.views.BuddyFlowResumeView object at 0xffffa37cbbd0&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_05_delete_flow" time="0.014"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b17c90&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa37e2390&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;
+managed_user_flow = &lt;UserFlow: Test User - Simple Flow&gt;
+
+    def test_b_mgmt_05_delete_flow(self, api_client, buddy_user, managed_user_flow):
+        """B-MGMT-05: DELETE flow — удаляет UserFlow."""
+        user_flow_id = managed_user_flow.id
+        assert UserFlow.objects.filter(id=user_flow_id).exists()
+    
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.delete(f'/api/buddy/flows/{user_flow_id}/')
+
+tests/test_buddy_api.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:320: in delete
+    response = super().delete(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:222: in delete
+    return self.generic('DELETE', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa3a4d850&gt;
+request = &lt;rest_framework.request.Request: DELETE '/api/buddy/flows/6/'&gt;
+view = &lt;apps.flows.views.BuddyFlowManageView object at 0xffffa3abbc10&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_buddy_api.TestBuddyApi" name="test_b_mgmt_06_pause_foreign_flow" time="0.012"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_buddy_api.TestBuddyApi object at 0xffffa3b07450&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa3a8ed50&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;, user = &lt;User: Test User (ID: 100)&gt;
+simple_flow = &lt;Flow: Simple Flow&gt;
+user_flow_factory = &lt;function user_flow_factory.&lt;locals&gt;.create_user_flow at 0xffffa305cc20&gt;
+
+    def test_b_mgmt_06_pause_foreign_flow(self, api_client, buddy_user, user, simple_flow, user_flow_factory):
+        """B-MGMT-06: Buddy не может паузить чужой поток → 403."""
+        # Создаем поток, где buddy_user не является бадди
+        foreign_flow = user_flow_factory(user=user, flow=simple_flow)
+    
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.post(f'/api/buddy/flows/{foreign_flow.id}/pause/')
+
+tests/test_buddy_api.py:153: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:296: in post
+    response = super().post(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:210: in post
+    return self.generic('POST', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa3854bd0&gt;
+request = &lt;rest_framework.request.Request: POST '/api/buddy/flows/7/pause/'&gt;
+view = &lt;apps.flows.views.BuddyFlowPauseView object at 0xffffa3856e10&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_common_utils.TestWorkingDaysUtils" name="test_add_working_days_simple" time="0.004" /><testcase classname="tests.test_common_utils.TestWorkingDaysUtils" name="test_add_working_days_across_weekend" time="0.003" /><testcase classname="tests.test_common_utils.TestWorkingDaysUtils" name="test_add_working_days_with_holidays" time="0.005" /><testcase classname="tests.test_common_utils.TestWorkingDaysUtils" name="test_add_zero_or_negative_days" time="0.001" /><testcase classname="tests.test_common_utils.TestWorkingDaysUtils" name="test_get_working_days_simple" time="0.002" /><testcase classname="tests.test_common_utils.TestWorkingDaysUtils" name="test_get_working_days_with_holidays" time="0.002" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_01_get_flow_details_unauthorized" time="0.003" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_01_get_flow_details_authenticated" time="0.008" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_04_get_article_details" time="0.014" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_02_get_flow_steps_list" time="0.031" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_03_get_flow_steps_order" time="0.025" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_05_read_step_first_time" time="0.034" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_06_read_step_second_time" time="0.030" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_07_get_content_before_accessible" time="0.022" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_08_get_task_after_accessible" time="0.029" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_09_10_post_quiz_answer" time="0.061" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_11_quiz_completion_unlocks_next_step" time="0.092" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_12_answer_foreign_quiz_question" time="0.035" /><testcase classname="tests.test_content_api.TestContentApi" name="test_cnt_13_quiz_shuffle" time="0.059" /><testcase classname="tests.test_e2e_user_flow" name="test_full_user_flow" time="0.018"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">api_client = &lt;rest_framework.test.APIClient object at 0xffffa33d67d0&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;, user = &lt;User: Test User (ID: 100)&gt;
+flow_with_steps = &lt;Flow: Complex Flow&gt;, report_data = []
+
+    def test_full_user_flow(
+        api_client: APIClient,
+        buddy_user: User,
+        user: User,
+        flow_with_steps: Flow,
+        report_data: list
+    ):
+        """
+        Тестирует полный жизненный цикл взаимодействия пользователя с системой.
+        """
+    
+        # Шаг 0: Бадди смотрит пользователей всех
+        api_client.force_authenticate(user=buddy_user)
+        users_url = '/api/buddy/users/'
+&gt;       response = api_client.get(users_url)
+
+tests/test_e2e_user_flow.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:289: in get
+    response = super().get(path, data=data, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:206: in get
+    return self.generic('GET', path, **r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa349c890&gt;
+request = &lt;rest_framework.request.Request: GET '/api/buddy/users/'&gt;
+view = &lt;apps.flows.views.BuddyUserListView object at 0xffffa33f45d0&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_flows.TestFlowModel" name="test_calculate_completion_date_no_steps" time="0.003" /><testcase classname="tests.test_flows.TestFlowModel" name="test_calculate_completion_date_with_steps" time="0.007" /><testcase classname="tests.test_flows.TestFlowModel" name="test_calculate_completion_date_with_holidays" time="0.009" /><testcase classname="tests.test_flows.TestFlowStartApi" name="test_start_flow_no_deadline_calculates_auto" time="0.018"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_flows.TestFlowStartApi object at 0xffffa3c97ed0&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa3854550&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;, user = &lt;User: Test User (ID: 100)&gt;
+flow_with_steps = &lt;Flow: Flow with steps&gt;
+
+    def test_start_flow_no_deadline_calculates_auto(self, api_client, buddy_user, user, flow_with_steps):
+        """
+        POST start без deadline: код 201, дедлайн рассчитывается автоматически.
+        Этот тест заменяет старый test_b_init_04.
+        """
+        assert not UserFlow.objects.filter(user=user, flow=flow_with_steps).exists()
+    
+        data = {'user_id': user.id}
+    
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.post(f'/api/buddy/flows/{flow_with_steps.id}/start/', data=data)
+
+tests/test_flows.py:66: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:296: in post
+    response = super().post(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:210: in post
+    return self.generic('POST', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa3a864d0&gt;
+request = &lt;rest_framework.request.Request: POST '/api/buddy/flows/27/start/'&gt;
+view = &lt;apps.flows.views.BuddyFlowStartView object at 0xffffa386bc10&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_flows.TestFlowStartApi" name="test_start_flow_with_deadline_uses_provided" time="0.012"><failure message="AttributeError: 'User' object has no attribute 'has_any_role'">self = &lt;tests.test_flows.TestFlowStartApi object at 0xffffa3c94ed0&gt;
+api_client = &lt;rest_framework.test.APIClient object at 0xffffa3828e50&gt;
+buddy_user = &lt;User: Buddy User (ID: 300)&gt;, user = &lt;User: Test User (ID: 100)&gt;
+simple_flow = &lt;Flow: Simple Flow&gt;
+
+    def test_start_flow_with_deadline_uses_provided(self, api_client, buddy_user, user, simple_flow):
+        """
+        POST start с указанным deadline: код 201, используется указанный дедлайн.
+        Этот тест аналогичен старому test_b_init_03.
+        """
+        deadline = date.today() + timedelta(days=25)
+        data = {
+            'user_id': user.id,
+            'expected_completion_date': deadline.isoformat()
+        }
+    
+        api_client.force_authenticate(user=buddy_user)
+&gt;       response = api_client.post(f'/api/buddy/flows/{simple_flow.id}/start/', data=data)
+
+tests/test_flows.py:92: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:296: in post
+    response = super().post(
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:210: in post
+    return self.generic('POST', path, data, content_type, **extra)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:234: in generic
+    return super().generic(
+/usr/local/lib/python3.11/site-packages/django/test/client.py:609: in generic
+    return self.request(**r)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:286: in request
+    return super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/test.py:238: in request
+    request = super().request(**kwargs)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:891: in request
+    self.check_exception(response)
+/usr/local/lib/python3.11/site-packages/django/test/client.py:738: in check_exception
+    raise exc_value
+/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py:55: in inner
+    response = get_response(request)
+/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py:197: in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/decorators/csrf.py:56: in wrapper_view
+    return view_func(*args, **kwargs)
+/usr/local/lib/python3.11/site-packages/django/views/generic/base.py:104: in view
+    return self.dispatch(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:509: in dispatch
+    response = self.handle_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:469: in handle_exception
+    self.raise_uncaught_exception(exc)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:480: in raise_uncaught_exception
+    raise exc
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:497: in dispatch
+    self.initial(request, *args, **kwargs)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:415: in initial
+    self.check_permissions(request)
+/usr/local/lib/python3.11/site-packages/rest_framework/views.py:332: in check_permissions
+    if not permission.has_permission(request, self):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;apps.common.permissions.IsBuddyOrModerator object at 0xffffa387e3d0&gt;
+request = &lt;rest_framework.request.Request: POST '/api/buddy/flows/28/start/'&gt;
+view = &lt;apps.flows.views.BuddyFlowStartView object at 0xffffa3953850&gt;
+
+    def has_permission(self, request, view):
+        """Проверка прав доступа"""
+        if not request.user.is_authenticated:
+            return False
+&gt;       return request.user.has_any_role(self.required_roles)
+E       AttributeError: 'User' object has no attribute 'has_any_role'
+
+apps/common/permissions.py:47: AttributeError</failure></testcase><testcase classname="tests.test_my_api.TestMyApi" name="test_my_01_get_my_flows_unauthorized" time="0.002" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_01_get_my_flows_list" time="0.013" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_02_get_my_progress_aggregated" time="0.023" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_03_get_progress_for_my_flow" time="0.012" /><testcase classname="tests.test_my_api.TestMyApi" name="test_my_03_get_progress_for_other_flow" time="0.010" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_01_first_step_available_on_start" time="0.017" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_02_second_step_locked" time="0.023" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_03_flow_completed_after_last_step" time="0.035" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_04_steps_inaccessible_when_paused" time="0.023" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_05_modify_progress_in_paused_state" time="0.023" /><testcase classname="tests.test_progress_business_rules.TestProgressBusinessRules" name="test_prg_06_estimated_time_sum" time="0.006" /><testcase classname="tests.test_utils" name="test_generate_random_string_default_length" time="0.001" /><testcase classname="tests.test_utils" name="test_generate_random_string_letters_only" time="0.001" /><testcase classname="tests.test_utils" name="test_generate_secure_token_length_and_hex" time="0.001" /><testcase classname="tests.test_utils" name="test_generate_secure_token_uniqueness" time="0.051" /></testsuite></testsuites>
