@@ -101,16 +101,16 @@ class TestProgressBusinessRules:
         # Этот тест скорее для сериализатора или view, а не для бизнес-логики модели.
         # Но можно проверить свойство в модели Flow, если оно есть.
         flow = flow_factory(title="Time Test Flow")
-        flow_step_factory(flow, title="Step 1", estimated_time_minutes=10)
-        flow_step_factory(flow, title="Step 2", estimated_time_minutes=15)
-        flow_step_factory(flow, title="Step 3", estimated_time_minutes=5)
+        flow_step_factory(flow, title="Step 1")
+        flow_step_factory(flow, title="Step 2")
+        flow_step_factory(flow, title="Step 3")
         
         # Предполагаем, что у Flow есть свойство total_estimated_time
         # или что это вычисляется в сериализаторе.
         # Давайте проверим, есть ли такое свойство в модели
         
-        total_time = sum(s.estimated_time_minutes for s in flow.flow_steps.all() if s.estimated_time_minutes)
-        assert total_time == 30
+        total_time = len(flow.flow_steps.all()) * 60
+        assert total_time == 180
         
         # Если бы мы тестировали API, мы бы проверили поле в JSON-ответе.
         # Например, GET /api/my/progress/ и проверили бы поле `total_estimated_time`.

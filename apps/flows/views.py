@@ -176,8 +176,8 @@ class FlowStepReadView(APIView):
                 step_progress.started_at = timezone.now()
                 step_progress.save()
             
-            # Отмечаем статью как прочитанную
-            if step.step_type == FlowStep.StepType.ARTICLE and not step_progress.article_read_at:
+            # Отмечаем статью как прочитанную, если она есть
+            if hasattr(step, 'article') and not step_progress.article_read_at:
                 # Используем сервис для завершения этапа со статьей
                 step_progress = FlowService.complete_article_step(user_flow, step)
                 
@@ -317,11 +317,6 @@ class FlowStepQuizView(APIView):
         """
         step = self.get_step(flow_id, step_id)
         
-        if step.step_type != FlowStep.StepType.QUIZ:
-            return Response({
-                'error': 'Этап не содержит квиза'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
         if not hasattr(step, 'quiz'):
             return Response({
                 'error': 'Квиз не найден'
@@ -348,11 +343,6 @@ class QuizQuestionAnswerView(APIView):
         """
         step = get_object_or_404(FlowStep, id=step_id, flow_id=flow_id, is_active=True)
         user_flow = get_object_or_404(UserFlow, flow_id=flow_id, user=request.user)
-        
-        if step.step_type != FlowStep.StepType.QUIZ:
-            return Response({
-                'error': 'Этап не содержит квиза'
-            }, status=status.HTTP_400_BAD_REQUEST)
         
         if not hasattr(step, 'quiz'):
             return Response({
@@ -385,14 +375,25 @@ class QuizQuestionAnswerView(APIView):
             }
         )
         
-        # Проверяем завершение квиза
-        is_completed = self._check_quiz_completion(user_flow, step, step.quiz)
-        
-        return Response({
+        response_data = {
             'message': 'Ответ сохранен',
             'is_correct': answer.is_correct,
-            'is_completed': is_completed
-        })
+        }
+
+        if not answer.is_correct:
+            correct = question.answers.filter(is_correct=True).first()
+            if correct:
+                response_data['correct_answer'] = {
+                    'id': correct.id,
+                    'text': correct.answer_text,
+                    'explanation': correct.explanation,
+                }
+
+        # Проверяем завершение квиза
+        is_completed = self._check_quiz_completion(user_flow, step, step.quiz)
+        response_data['is_completed'] = is_completed
+
+        return Response(response_data)
     
     def _check_quiz_completion(self, user_flow, step, quiz):
         """

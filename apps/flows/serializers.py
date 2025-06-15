@@ -19,21 +19,34 @@ from apps.users.serializers import UserListSerializer
 from apps.guides.serializers import ArticleBasicSerializer
 
 
-class FlowBasicSerializer(serializers.ModelSerializer):
+class BaseUserApiSerializer(serializers.ModelSerializer):
+    """Сериализатор, скрывающий служебные поля от обычных пользователей."""
+
+    class Meta:
+        abstract = True
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if not (request and request.user.has_role('moderator')):
+            data.pop('created_at', None)
+            data.pop('updated_at', None)
+        return data
+
+
+class FlowBasicSerializer(BaseUserApiSerializer):
     """
     Базовый сериализатор потока обучения
     """
     total_steps = serializers.ReadOnlyField()
-    required_steps = serializers.ReadOnlyField()
     
     class Meta:
         model = Flow
         fields = [
-            'id', 'title', 'description', 'estimated_duration_hours',
-            'is_mandatory', 'is_active', 'total_steps', 'required_steps',
-            'created_at', 'updated_at'
+            'id', 'title', 'description',
+            'is_mandatory', 'is_active', 'total_steps',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id']
 
 
 class FlowSerializer(FlowBasicSerializer):
@@ -50,7 +63,7 @@ class FlowSerializer(FlowBasicSerializer):
         fields = FlowBasicSerializer.Meta.fields + ['auto_assign_departments']
 
 
-class TaskSerializer(serializers.ModelSerializer):
+class TaskSerializer(BaseUserApiSerializer):
     """
     Сериализатор задания
     """
@@ -87,7 +100,7 @@ class TaskAnswerSerializer(serializers.Serializer):
         return value.strip()
 
 
-class QuizAnswerSerializer(serializers.ModelSerializer):
+class QuizAnswerSerializer(BaseUserApiSerializer):
     """
     Сериализатор варианта ответа на вопрос квиза
     """
@@ -115,7 +128,7 @@ class QuizAnswerSerializer(serializers.ModelSerializer):
         return data
 
 
-class QuizQuestionSerializer(serializers.ModelSerializer):
+class QuizQuestionSerializer(BaseUserApiSerializer):
     """
     Сериализатор вопроса квиза
     """
@@ -141,7 +154,7 @@ class QuizQuestionSerializer(serializers.ModelSerializer):
         return data
 
 
-class QuizSerializer(serializers.ModelSerializer):
+class QuizSerializer(BaseUserApiSerializer):
     """
     Сериализатор квиза
     """
@@ -173,7 +186,7 @@ class QuizSerializer(serializers.ModelSerializer):
         return data
 
 
-class FlowStepSerializer(serializers.ModelSerializer):
+class FlowStepSerializer(BaseUserApiSerializer):
     """
     Сериализатор этапа потока
     """
@@ -184,11 +197,10 @@ class FlowStepSerializer(serializers.ModelSerializer):
     class Meta:
         model = FlowStep
         fields = [
-            'id', 'title', 'description', 'step_type', 'order',
-            'is_required', 'estimated_time_minutes', 'is_active',
-            'article', 'task', 'quiz', 'created_at', 'updated_at'
+            'id', 'title', 'description', 'order',
+            'is_active', 'article', 'task', 'quiz'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id']
 
 
 class FlowDetailSerializer(FlowSerializer):
@@ -306,7 +318,7 @@ class FlowBuddySerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'assigned_at', 'created_at']
 
 
-class UserFlowSerializer(serializers.ModelSerializer):
+class UserFlowSerializer(BaseUserApiSerializer):
     """
     Сериализатор прохождения потока пользователем
     """
@@ -377,9 +389,7 @@ class UserFlowDetailSerializer(UserFlowSerializer):
                             'id': progress.flow_step.id,
                             'title': progress.flow_step.title,
                             'description': progress.flow_step.description,
-                            'step_type': progress.flow_step.step_type,
                             'order': progress.flow_step.order,
-                            'estimated_time_minutes': progress.flow_step.estimated_time_minutes,
                             # НЕ включаем article, task, quiz - это и есть контент
                         },
                         'status': progress.status,

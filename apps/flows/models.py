@@ -27,12 +27,6 @@ class Flow(BaseModel, ActiveModel):
         'Описание',
         help_text='Подробное описание потока обучения'
     )
-    estimated_duration_hours = models.PositiveIntegerField(
-        'Ожидаемая продолжительность (часы)',
-        null=True,
-        blank=True,
-        help_text='Примерное время прохождения в часах'
-    )
     
     # Настройки доступа
     is_mandatory = models.BooleanField(
@@ -63,11 +57,6 @@ class Flow(BaseModel, ActiveModel):
         """Общее количество этапов в потоке"""
         return self.flow_steps.count()
     
-    @property
-    def required_steps(self):
-        """Количество обязательных этапов"""
-        return self.flow_steps.filter(is_required=True).count()
-    
     def get_next_step_order(self):
         """Возвращает следующий порядковый номер для нового этапа"""
         last_step = self.flow_steps.order_by('-order').first()
@@ -86,11 +75,8 @@ class Flow(BaseModel, ActiveModel):
         if not start_date:
             start_date = timezone.now().date()
         
-        # Суммируем estimated_time_minutes всех этапов
-        total_minutes = 0
-        for step in self.flow_steps.filter(is_active=True):
-            if step.estimated_time_minutes:
-                total_minutes += step.estimated_time_minutes
+        # Для упрощения считаем, что каждый этап занимает около часа
+        total_minutes = self.flow_steps.filter(is_active=True).count() * 60
         
         # Переводим минуты в рабочие дни (считаем, что в день сотрудник 
         # может уделить примерно 2 часа на обучение)
@@ -108,14 +94,8 @@ class Flow(BaseModel, ActiveModel):
 
 class FlowStep(BaseModel, OrderedModel, ActiveModel):
     """
-    Этап потока обучения
-    Может содержать статью, задание или квиз
+    Этап потока обучения, содержащий статью, задание и квиз одновременно.
     """
-    class StepType(models.TextChoices):
-        ARTICLE = 'article', 'Статья'
-        TASK = 'task', 'Задание'
-        QUIZ = 'quiz', 'Квиз'
-        MIXED = 'mixed', 'Смешанный'
     
     flow = models.ForeignKey(
         Flow,
@@ -132,35 +112,8 @@ class FlowStep(BaseModel, OrderedModel, ActiveModel):
         'Описание',
         help_text='Описание того, что нужно сделать на этом этапе'
     )
-    step_type = models.CharField(
-        'Тип этапа',
-        max_length=20,
-        choices=StepType.choices,
-        help_text='Тип контента в этапе'
-    )
     
-    # Связи с контентом
-    article = models.ForeignKey(
-        'guides.Article',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='flow_steps',
-        verbose_name='Статья'
-    )
-    
-    # Настройки этапа
-    is_required = models.BooleanField(
-        'Обязательный',
-        default=True,
-        help_text='Обязателен ли этап для завершения потока'
-    )
-    estimated_time_minutes = models.PositiveIntegerField(
-        'Ожидаемое время (минуты)',
-        null=True,
-        blank=True,
-        help_text='Примерное время выполнения этапа'
-    )
+    # Связи с контентом задаются в связанных моделях Article, Task и Quiz
     
     class Meta:
         db_table = 'flow_steps'
@@ -172,15 +125,7 @@ class FlowStep(BaseModel, OrderedModel, ActiveModel):
     def __str__(self):
         return f"{self.flow.title} - {self.title}"
     
-    def get_content_object(self):
-        """Возвращает объект контента (статья, задание или квиз)"""
-        if self.step_type == self.StepType.ARTICLE and self.article:
-            return self.article
-        elif self.step_type == self.StepType.TASK:
-            return getattr(self, 'task', None)
-        elif self.step_type == self.StepType.QUIZ:
-            return getattr(self, 'quiz', None)
-        return None
+
 
 
 class Task(BaseModel):

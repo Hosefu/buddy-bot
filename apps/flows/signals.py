@@ -106,13 +106,9 @@ def step_progress_updated_handler(sender, instance, created, **kwargs):
         notify_step_completion.delay(instance.user_flow.id, instance.flow_step.id)
         
         # Проверяем, завершен ли весь поток
-        total_required_steps = instance.user_flow.flow.flow_steps.filter(
-            is_required=True, 
-            is_active=True
-        ).count()
-        
+        total_required_steps = instance.user_flow.flow.flow_steps.filter(is_active=True).count()
+
         completed_required_steps = instance.user_flow.step_progress.filter(
-            flow_step__is_required=True,
             flow_step__is_active=True,
             status='completed'
         ).count()

@@ -63,7 +63,7 @@ def test_full_user_flow(
     progress_url = f'/api/my/progress/{user_flow.flow.id}/'
     
     # Шаг 3.1: Прохождение статьи
-    step1 = flow_with_steps.flow_steps.get(step_type=FlowStep.StepType.ARTICLE)
+    step1 = flow_with_steps.flow_steps.order_by('order')[0]
     complete_step_url = f'/api/flows/{flow_with_steps.id}/steps/{step1.id}/read/'
     response = api_client.post(complete_step_url)
     assert response.status_code == 200
@@ -73,7 +73,7 @@ def test_full_user_flow(
     assert step1_progress.status == UserStepProgress.StepStatus.COMPLETED
 
     # Шаг 3.2: Прохождение задания
-    step2 = flow_with_steps.flow_steps.get(step_type=FlowStep.StepType.TASK)
+    step2 = flow_with_steps.flow_steps.order_by('order')[1]
     submit_task_url = f'/api/flows/{flow_with_steps.id}/steps/{step2.id}/task/'
     task_body = {'answer': 'secret'}
     response = api_client.post(submit_task_url, task_body, format='json')
@@ -85,7 +85,7 @@ def test_full_user_flow(
     assert step2_progress.status == UserStepProgress.StepStatus.COMPLETED
 
     # Шаг 3.3: Прохождение квиза
-    step3 = flow_with_steps.flow_steps.get(step_type=FlowStep.StepType.QUIZ)
+    step3 = flow_with_steps.flow_steps.order_by('order')[2]
     question = step3.quiz.questions.first()
     correct_answer = question.answers.get(is_correct=True)
     submit_quiz_url = f'/api/flows/{flow_with_steps.id}/steps/{step3.id}/quiz/{question.id}/'
