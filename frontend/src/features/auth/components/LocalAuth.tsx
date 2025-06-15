@@ -2,11 +2,11 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAppDispatch } from '../hooks/useAuth';
-import { loginSuccess } from '../slice';
+import { loginStart, loginSuccess, loginFailure } from '../slice';
+import { refreshTokens, fetchCurrentUser } from '../api';
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(4),
+  refresh: z.string().min(10),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -17,41 +17,32 @@ export const LocalAuth = () => {
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = (data: FormValues) => {
-    // mock login success
-    dispatch(
-      loginSuccess({
-        user: {
-          id: 1,
-          firstName: 'Dev',
-          roles: ['user'],
-        },
-        tokens: { access: 'mock', refresh: 'mock' },
-      })
-    );
+  const onSubmit = async (data: FormValues) => {
+    dispatch(loginStart());
+    try {
+      const tokens = await refreshTokens(data.refresh);
+      const user = await fetchCurrentUser();
+      dispatch(loginSuccess({ user, tokens }));
+    } catch (e) {
+      dispatch(loginFailure('Auth failed'));
+    }
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-4">
-      <input
-        className="border p-2 w-full"
-        placeholder="Email"
-        {...register('email')}
+      <textarea
+        className="border p-2 w-full h-24"
+        placeholder="Refresh token"
+        {...register('refresh')}
       />
-      <input
-        className="border p-2 w-full"
-        type="password"
-        placeholder="Password"
-        {...register('password')}
-      />
-      {formState.errors.email && (
-        <p className="text-red-500 text-sm">Invalid email</p>
+      {formState.errors.refresh && (
+        <p className="text-red-500 text-sm">Token is required</p>
       )}
       <button
         className="bg-blue-500 text-white px-4 py-2 rounded"
         type="submit"
       >
-        Login
+        Dev Login
       </button>
     </form>
   );
