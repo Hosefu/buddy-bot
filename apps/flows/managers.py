@@ -311,26 +311,7 @@ class FlowStepManager(models.Manager):
         """
         return self.active().filter(flow=flow).order_by('order')
     
-    def required(self):
-        """
-        Возвращает только обязательные этапы
-        
-        Returns:
-            QuerySet: Обязательные этапы
-        """
-        return self.active().filter(is_required=True)
-    
-    def by_type(self, step_type):
-        """
-        Возвращает этапы определенного типа
-        
-        Args:
-            step_type (str): Тип этапа
-            
-        Returns:
-            QuerySet: Этапы указанного типа
-        """
-        return self.active().filter(step_type=step_type)
+
     
     def with_content(self):
         """

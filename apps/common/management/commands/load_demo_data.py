@@ -12,6 +12,7 @@ from apps.flows.models import (
     QuizQuestion,
     QuizAnswer,
 )
+from apps.guides.models import Article
 
 
 class Command(BaseCommand):
@@ -165,11 +166,19 @@ class Command(BaseCommand):
                 defaults={
                     'title': step_data['title'],
                     'description': step_data['description'],
-                    'step_type': FlowStep.StepType.MIXED,
                 },
             )
             if created_step:
                 self.stdout.write(f'  • Этап {order} создан')
+
+            Article.objects.get_or_create(
+                flow_step=step,
+                defaults={
+                    'title': step_data['title'],
+                    'content': step_data['description'],
+                    'is_published': True,
+                },
+            )
 
             task, _ = Task.objects.get_or_create(
                 flow_step=step,
