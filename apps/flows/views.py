@@ -426,7 +426,8 @@ class QuizQuestionAnswerView(APIView):
             flow_step=step
         )
         
-        # Создаем снапшот квиза
+        # Создаем снапшот квиза, если его ещё нет
+        QuizSnapshot.objects.filter(user_step_progress=step_progress).delete()
         quiz_snapshot = QuizSnapshot.objects.create(
             user_step_progress=step_progress,
             quiz_title=quiz.title,

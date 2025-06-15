@@ -23,8 +23,8 @@ def log_request(report_data, name, method, url, response, request_body=None):
     })
 
 
-def test_full_moderator_flow(api_client: APIClient, admin_user: User, report_data: list):
-    """E2E: модератор создаёт и управляет потоком и шагами."""
+def test_e2e_02_full_moderator_flow(api_client: APIClient, admin_user: User, report_data: list):
+    """E2E-02: модератор создаёт и управляет потоком и шагами."""
     api_client.force_authenticate(user=admin_user)
 
     # Создание потока

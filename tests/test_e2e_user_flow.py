@@ -22,7 +22,7 @@ def log_request(report_data, name, method, url, response, request_body=None):
         'status_code': response.status_code,
     })
 
-def test_full_user_flow(
+def test_e2e_01_full_user_flow(
     api_client: APIClient, 
     buddy_user: User, 
     user: User, 
