@@ -124,6 +124,11 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # Включаем пагинацию по умолчанию, чтобы ответы ListAPIView
+    # содержали поля count/next/previous/results, как ожидают тесты.
+    'DEFAULT_PAGINATION_CLASS':
+        'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
 }
 
 # Internationalization
