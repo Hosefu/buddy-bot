@@ -4,6 +4,13 @@ import path from 'node:path';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    host: true,
+    port: 3000,
+    watch: {
+      usePolling: true,
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

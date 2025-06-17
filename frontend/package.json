@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "dev": "node_modules/.bin/vite",
+    "build": "tsc && node_modules/.bin/vite build",
+    "preview": "node_modules/.bin/vite preview",
     "lint": "eslint src --ext ts,tsx",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

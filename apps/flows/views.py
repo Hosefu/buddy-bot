@@ -38,7 +38,7 @@ class MyFlowListView(generics.ListAPIView):
     """
     Мои доступные потоки обучения
     """
-    serializer_class = MyFlowProgressSerializer
+    serializer_class = UserFlowSerializer
     permission_classes = [IsActiveUser]
     
     def get_queryset(self):

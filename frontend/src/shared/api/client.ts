@@ -25,16 +25,24 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && refresh && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh/`, {
+        const { data: tokenData } = await apiClient.post('/auth/refresh/', {
           refresh,
         });
+        
+        // Получаем данные пользователя после обновления токена
+        const { data: userData } = await apiClient.get('/auth/me/', {
+          headers: { Authorization: `Bearer ${tokenData.access}` }
+        });
+        
         store.dispatch(
           loginSuccess({
-            user: store.getState().auth.user!,
-            tokens: { access: data.access, refresh },
+            user: userData,
+            tokens: { access: tokenData.access, refresh },
           })
         );
-        originalRequest.headers.Authorization = `Bearer ${data.access}`;
+        
+        apiClient.defaults.headers.common.Authorization = `Bearer ${tokenData.access}`;
+        originalRequest.headers.Authorization = `Bearer ${tokenData.access}`;
         return apiClient(originalRequest);
       } catch (e) {
         store.dispatch(logout());

@@ -9,6 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from django.db import transaction
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from .models import User, Role, UserRole
 from .serializers import (
@@ -79,7 +80,7 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
     Получение и обновление информации о текущем пользователе
     """
     serializer_class = UserSerializer
-    permission_classes = [IsActiveUser]
+    # Классы аутентификации и разрешений теперь берутся из глобальных настроек
     
     def get_object(self):
         return self.request.user

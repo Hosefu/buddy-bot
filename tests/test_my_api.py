@@ -9,16 +9,25 @@ class TestMyApi:
     Тесты для эндпоинтов /api/my/
     """
 
-    def test_my_01_get_my_flows_unauthorized(self, api_client):
+    def test_my_01_get_my_profile_unauthorized(self, api_client):
         """
-        MY-01: GET /api/my/flows/ - неавторизованный пользователь получает 401
+        MY-01: GET /api/auth/me/ - неавторизованный пользователь получает 401
         """
-        response = api_client.get('/api/my/flows/')
+        response = api_client.get('/api/auth/me/')
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_my_01_get_my_flows_list(self, api_client, user, user_flow_factory, flow_factory):
+    def test_my_01_get_my_profile_authorized(self, api_client, user):
         """
-        MY-01: GET /api/my/flows/ — список только активных Flow, к которым пользователь назначен
+        MY-01: GET /api/auth/me/ - авторизованный пользователь получает свои данные
+        """
+        api_client.force_authenticate(user=user)
+        response = api_client.get('/api/auth/me/')
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data['id'] == user.id
+
+    def test_my_02_get_my_flows_list(self, api_client, user, user_flow_factory, flow_factory):
+        """
+        MY-02: GET /api/my/flows/ — список только активных Flow, к которым пользователь назначен
         """
         # Потоки, назначенные пользователю
         active_flow = flow_factory(title="Active Assigned Flow", is_active=True)
@@ -37,9 +46,9 @@ class TestMyApi:
         assert len(response.data['results']) == 1
         assert response.data['results'][0]['flow']['title'] == "Active Assigned Flow"
 
-    def test_my_02_get_my_progress_aggregated(self, api_client, user, flow_factory, flow_step_factory, user_flow_factory):
+    def test_my_03_get_my_progress_aggregated(self, api_client, user, flow_factory, flow_step_factory, user_flow_factory):
         """
-        MY-02: GET /api/my/progress/ — корректный агрегированный прогресс (percent)
+        MY-03: GET /api/my/progress/ — корректный агрегированный прогресс (percent)
         """
         # --- Flow 1: 2 шага, 1 завершен (50%) ---
         flow1 = flow_factory(title="Flow 1")
@@ -69,9 +78,9 @@ class TestMyApi:
         # 50% + 100% / 2 = 75%
         assert response.data['average_progress'] == 75.0
 
-    def test_my_03_get_progress_for_my_flow(self, api_client, user, user_flow_factory, simple_flow):
+    def test_my_04_get_progress_for_my_flow(self, api_client, user, user_flow_factory, simple_flow):
         """
-        MY-03: GET /api/my/progress/{flow_id}/ — 200, если пользователь участвует
+        MY-04: GET /api/my/progress/{flow_id}/ — 200, если пользователь участвует
         """
         user_flow = user_flow_factory(user=user, flow=simple_flow)
 
@@ -81,9 +90,9 @@ class TestMyApi:
         assert response.status_code == status.HTTP_200_OK
         assert response.data['id'] == user_flow.id
 
-    def test_my_03_get_progress_for_other_flow(self, api_client, user, another_user, user_flow_factory, simple_flow):
+    def test_my_05_get_progress_for_other_flow(self, api_client, user, another_user, user_flow_factory, simple_flow):
         """
-        MY-03: GET /api/my/progress/{flow_id}/ — 404, если пользователь не участвует
+        MY-05: GET /api/my/progress/{flow_id}/ — 404, если пользователь не участвует
         """
         # Поток назначен другому пользователю
         other_user_flow = user_flow_factory(user=another_user, flow=simple_flow)

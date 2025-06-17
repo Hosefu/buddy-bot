@@ -57,8 +57,11 @@ services:
       context: ./frontend
     volumes:
       - ./frontend:/app
+      - /app/node_modules
     ports:
       - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
     env_file:
       - ./frontend/.env.example
     depends_on:
