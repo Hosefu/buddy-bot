@@ -10,6 +10,7 @@ from django.contrib.auth import authenticate
 from django.utils import timezone
 from django.db import transaction
 from rest_framework_simplejwt.authentication import JWTAuthentication
+import logging
 
 from .models import User, Role, UserRole
 from .serializers import (
@@ -21,6 +22,8 @@ from apps.common.permissions import (
     IsModerator, IsActiveUser, CanManageUserRoles,
     TelegramBotPermission
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TelegramAuthView(APIView):
@@ -80,10 +83,17 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
     Получение и обновление информации о текущем пользователе
     """
     serializer_class = UserSerializer
-    # Классы аутентификации и разрешений теперь берутся из глобальных настроек
     
     def get_object(self):
+        logger.info(f'Retrieving current user. Auth: {self.request.auth}, User: {self.request.user}')
+        if not self.request.user.is_authenticated:
+            logger.warning('User is not authenticated')
+            return None
         return self.request.user
+
+    def retrieve(self, request, *args, **kwargs):
+        logger.info(f'Headers: {request.headers}')
+        return super().retrieve(request, *args, **kwargs)
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):

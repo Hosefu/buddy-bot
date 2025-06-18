@@ -14,7 +14,11 @@ export const ProtectedRoute = ({ children, requiredRoles }: Props) => {
   }
 
   if (requiredRoles && requiredRoles.length) {
-    const hasRole = user.roles.some((r) => requiredRoles.includes(r));
+    const rolesArr: string[] = (user as any).roles || [];
+    const isBuddyFlag = (user as any).is_buddy === true;
+    const hasRole =
+      rolesArr.some((r) => requiredRoles.includes(r) || requiredRoles.includes(r.toLowerCase())) ||
+      (isBuddyFlag && requiredRoles.some((r) => ['buddy', 'бадди'].includes(r.toLowerCase())));
     if (!hasRole) return <Navigate to="/" />;
   }
 

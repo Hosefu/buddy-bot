@@ -1,5 +1,17 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import type { User, Tokens } from './types';
+
+export interface User {
+  id: number;
+  name: string;
+  telegram_id: string;
+  telegram_username: string | null;
+  role: 'user' | 'buddy';
+}
+
+export interface Tokens {
+  access: string;
+  refresh: string;
+}
 
 interface AuthState {
   user: User | null;
@@ -25,6 +37,7 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.tokens = action.payload.tokens;
       state.isLoading = false;
+      state.error = null;
       localStorage.setItem(
         'auth',
         JSON.stringify({ user: state.user, tokens: state.tokens })
@@ -37,6 +50,7 @@ const authSlice = createSlice({
     logout(state) {
       state.user = null;
       state.tokens = null;
+      state.error = null;
       localStorage.removeItem('auth');
     },
   },

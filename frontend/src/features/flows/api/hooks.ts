@@ -6,7 +6,7 @@ export const useFlows = () =>
     queryKey: ['flows'],
     queryFn: async () => {
       const { data } = await apiClient.get('/my/flows');
-      return data;
+      return data.results;
     },
   });
 

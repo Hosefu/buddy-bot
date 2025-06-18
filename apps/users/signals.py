@@ -62,6 +62,14 @@ def user_role_assigned_handler(sender, instance, created, **kwargs):
             f"Роль '{instance.role.display_name}' назначена пользователю {instance.user.name}"
         )
         
+        # Синхронизируем ManyToMany поле roles у пользователя
+        # чтобы методы has_role и сериализаторы корректно видели роль
+        if not instance.user.roles.filter(id=instance.role.id).exists():
+            instance.user.roles.add(instance.role)
+            logger.debug(
+                f"Роль '{instance.role.name}' добавлена в M2M поле user.roles для {instance.user.name}"
+            )
+        
         # Если назначена роль buddy, отправляем уведомление
         if instance.role.name == 'buddy':
             from .tasks import send_telegram_notification
