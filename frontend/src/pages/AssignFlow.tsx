@@ -1,61 +1,39 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiClient } from '@/shared/api/client';
 import { PageLayout } from '@/shared/components/PageLayout';
-
-interface User {
-  id: number;
-  name: string;
-  telegram_username: string | null;
-}
-
-interface Flow {
-  id: number;
-  title: string;
-  description: string;
-}
-
-const useUsers = () => {
-  return useQuery({
-    queryKey: ['available-users'],
-    queryFn: async () => {
-      const { data } = await apiClient.get('/buddy/users/');
-      return data.results as User[];
-    },
-  });
-};
-
-const useFlow = (flowId: string) => {
-  return useQuery({
-    queryKey: ['flow', flowId],
-    queryFn: async () => {
-      const { data } = await apiClient.get(`/flows/${flowId}/`);
-      return data as Flow;
-    },
-    enabled: !!flowId,
-  });
-};
+import { 
+  useGetAvailableUsersQuery, 
+  useGetFlowDetailsQuery,
+  useAssignFlowMutation 
+} from '@/features/flows/flowApi';
+import { User } from '@/features/flows/types';
 
 export const AssignFlowPage = () => {
-  const { flowId } = useParams();
+  const { flowId } = useParams<{flowId: string}>();
   const navigate = useNavigate();
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   
-  const { data: users, isLoading: isLoadingUsers } = useUsers();
-  const { data: flow, isLoading: isLoadingFlow } = useFlow(flowId || '');
-
-  const assignFlowMutation = useMutation({
-    mutationFn: async (data: { userId: number; flowId: string }) => {
-      const payload = { user_id: data.userId };
-      return apiClient.post(`/buddy/flows/${data.flowId}/start/`, payload);
-    },
-    onSuccess: () => {
-      navigate('/buddy/dashboard');
-    },
+  const { data: users, isLoading: isLoadingUsers } = useGetAvailableUsersQuery();
+  const { data: flow, isLoading: isLoadingFlow } = useGetFlowDetailsQuery(flowId || '', {
+    skip: !flowId,
   });
+  const [assignFlow, { isLoading: isAssigning }] = useAssignFlowMutation();
 
-  if (isLoadingUsers || isLoadingFlow) {
+  const handleAssign = async () => {
+    if (!selectedUserId || !flowId) return;
+    try {
+      await assignFlow({ userId: selectedUserId, flowId }).unwrap();
+      navigate('/buddy/dashboard');
+    } catch (error) {
+      // TODO: Add proper error handling (e.g., show a toast notification)
+      console.error('Failed to assign flow:', error);
+      alert('Не удалось назначить поток. Попробуйте снова.');
+    }
+  };
+
+  const isLoading = isLoadingUsers || (flowId && isLoadingFlow);
+
+  if (isLoading) {
     return (
       <PageLayout>
         <div className="flex items-center justify-center h-64">
@@ -64,11 +42,6 @@ export const AssignFlowPage = () => {
       </PageLayout>
     );
   }
-
-  const handleAssign = () => {
-    if (!selectedUserId || !flowId) return;
-    assignFlowMutation.mutate({ userId: selectedUserId, flowId });
-  };
 
   return (
     <PageLayout>
@@ -91,7 +64,7 @@ export const AssignFlowPage = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {users.map((user) => (
+              {users.map((user: User) => (
                 <label
                   key={user.id}
                   className={`
@@ -127,15 +100,15 @@ export const AssignFlowPage = () => {
                 </button>
                 <button
                   onClick={handleAssign}
-                  disabled={!selectedUserId || assignFlowMutation.isPending}
+                  disabled={!selectedUserId || isAssigning}
                   className={`
                     px-4 py-2 rounded text-white
-                    ${!selectedUserId || assignFlowMutation.isPending
+                    ${!selectedUserId || isAssigning
                       ? 'bg-blue-300 cursor-not-allowed'
                       : 'bg-blue-500 hover:bg-blue-600'}
                   `}
                 >
-                  {assignFlowMutation.isPending ? 'Назначаем...' : 'Назначить поток'}
+                  {isAssigning ? 'Назначаем...' : 'Назначить поток'}
                 </button>
               </div>
             </div>

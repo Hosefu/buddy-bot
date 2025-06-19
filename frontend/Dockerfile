@@ -5,15 +5,16 @@ RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# Сначала копируем все файлы проекта
-COPY . .
+# Копируем package.json и package-lock.json (или yarn.lock, и т.д.)
+COPY package*.json ./
 
-# Очищаем кэш npm и node_modules для чистой установки
-RUN rm -rf node_modules package-lock.json
-RUN npm cache clean --force
-
-# Устанавливаем все зависимости
+# Устанавливаем зависимости
+# Это создаст слой в Docker-образе, который будет кешироваться
+# и пересобираться только при изменении package.json
 RUN npm install
+
+# Копируем остальной код приложения
+COPY . .
 
 EXPOSE 3000
 

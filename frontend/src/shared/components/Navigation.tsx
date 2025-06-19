@@ -51,18 +51,22 @@ export const Navigation = () => {
               <Link to="/" className={linkClasses(isActive('/'))}>
                 Мои потоки
               </Link>
-              <Link
-                to="/buddy/dashboard"
-                className={linkClasses(isActive('/buddy/dashboard')) + (!isBuddy ? ' opacity-60' : '')}
-              >
-                Панель бадди
-              </Link>
-              <Link
-                to="/buddy/assign-flow"
-                className={linkClasses(isActive('/buddy/assign-flow')) + (!isBuddy ? ' opacity-60' : '')}
-              >
-                Назначить поток
-              </Link>
+              {isBuddy && (
+                <>
+                  <Link
+                    to="/buddy/dashboard"
+                    className={linkClasses(isActive('/buddy/dashboard'))}
+                  >
+                    Панель бадди
+                  </Link>
+                  <Link
+                    to="/buddy/assign-flow"
+                    className={linkClasses(isActive('/buddy/assign-flow'))}
+                  >
+                    Назначить поток
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           
@@ -92,8 +96,12 @@ export const Navigation = () => {
       <div className="md:hidden">
         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
           <Link to="/" className={`block ${linkClasses(isActive('/'))}`}>Мои потоки</Link>
-          <Link to="/buddy/dashboard" className={`block ${linkClasses(isActive('/buddy/dashboard'))} ${!isBuddy ? 'opacity-60' : ''}`}>Панель бадди</Link>
-          <Link to="/buddy/assign-flow" className={`block ${linkClasses(isActive('/buddy/assign-flow'))} ${!isBuddy ? 'opacity-60' : ''}`}>Назначить поток</Link>
+          {isBuddy && (
+            <>
+              <Link to="/buddy/dashboard" className={`block ${linkClasses(isActive('/buddy/dashboard'))}`}>Панель бадди</Link>
+              <Link to="/buddy/assign-flow" className={`block ${linkClasses(isActive('/buddy/assign-flow'))}`}>Назначить поток</Link>
+            </>
+          )}
           <button
             onClick={() => {
               dispatch(logout());

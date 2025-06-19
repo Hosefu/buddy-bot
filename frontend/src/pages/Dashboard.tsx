@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom';
-import { useFlows } from '@/features/flows/api/hooks';
+import { useGetMyFlowsQuery } from '@/features/flows/flowApi';
 import { PageLayout } from '@/shared/components/PageLayout';
+import { FlowStep } from '@/features/flows/types';
 
 export const DashboardPage = () => {
-  const { data: flows, isLoading, error } = useFlows();
+  const { data: userFlows, isLoading, error } = useGetMyFlowsQuery();
+
+  console.log('User flows data:', userFlows);
 
   if (isLoading) {
     return (
@@ -16,6 +19,7 @@ export const DashboardPage = () => {
   }
 
   if (error) {
+    console.error('Error loading flows:', error);
     return (
       <PageLayout>
         <div className="flex flex-col items-center justify-center h-64">
@@ -31,7 +35,7 @@ export const DashboardPage = () => {
     );
   }
 
-  if (!flows?.length) {
+  if (!userFlows?.length) {
     return (
       <PageLayout>
         <h1 className="text-xl font-bold mb-4">Мои потоки</h1>
@@ -45,25 +49,41 @@ export const DashboardPage = () => {
   return (
     <PageLayout>
       <h1 className="text-xl font-bold mb-4">Мои потоки</h1>
-      <ul className="space-y-4">
-        {flows.map((flow) => (
-          <li key={flow.id} className="bg-white rounded-lg shadow p-4">
-            <Link 
-              to={`/flows/${flow.id}`}
-              className="block hover:bg-gray-50 transition-colors"
-            >
-              <h2 className="text-lg font-medium text-blue-600">{flow.title}</h2>
-              {flow.description && (
-                <p className="text-gray-600 mt-1">{flow.description}</p>
-              )}
-              <div className="flex items-center mt-2">
-                <div className="text-sm text-gray-500">
-                  Прогресс: {flow.progress_percentage || 0}%
+      <ul className="space-y-6">
+        {userFlows.map((userFlow) => {
+          console.log('Processing userFlow:', userFlow);
+          const isActionable = (userFlow.status === 'in_progress' || userFlow.status === 'not_started') && userFlow.current_step;
+          const linkTo = isActionable ? `/flows/${userFlow.flow.id}/step/${userFlow.current_step!.id}` : '#';
+          const buttonText = userFlow.status === 'in_progress' ? 'Продолжить' : 'Начать';
+
+          return (
+            <li key={userFlow.id} className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+              <div className="p-6">
+                <h2 className="text-2xl font-bold text-gray-800">{userFlow.flow.title}</h2>
+                <p className="text-gray-600 mt-2">{userFlow.flow.description}</p>
+                <div className="mt-6 flex justify-between items-center">
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">Статус: </span>
+                    <span className="text-sm font-semibold text-gray-800">{userFlow.status}</span>
+                  </div>
+                  {isActionable && (
+                    <Link 
+                      to={linkTo} 
+                      className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                      {buttonText}
+                    </Link>
+                  )}
+                  {userFlow.status === 'completed' && (
+                     <span className="px-5 py-2 bg-green-100 text-green-800 font-semibold rounded-lg">
+                       Завершено
+                     </span>
+                  )}
                 </div>
               </div>
-            </Link>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </PageLayout>
   );

@@ -3,6 +3,8 @@ import { DashboardPage } from '@/pages/Dashboard';
 import { BuddyDashboardPage } from '@/pages/BuddyDashboard';
 import { AssignFlowPage } from '@/pages/AssignFlow';
 import { FlowPreviewPage } from '@/pages/FlowPreview';
+import { BuddyFlowPreviewPage } from '@/pages/BuddyFlowPreview';
+import { FlowStepPage } from '@/pages/FlowStepPage';
 import { LocalAuth } from '@/features/auth/components/LocalAuth';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -36,7 +38,7 @@ export const router = createBrowserRouter([
   {
     path: '/buddy/dashboard',
     element: (
-      <ProtectedRoute requiredRole="buddy">
+      <ProtectedRoute>
         <BuddyDashboardPage />
       </ProtectedRoute>
     ),
@@ -44,7 +46,7 @@ export const router = createBrowserRouter([
   {
     path: '/buddy/assign-flow',
     element: (
-      <ProtectedRoute requiredRole="buddy">
+      <ProtectedRoute>
         <AssignFlowPage />
       </ProtectedRoute>
     ),
@@ -52,8 +54,16 @@ export const router = createBrowserRouter([
   {
     path: '/buddy/assign-flow/:flowId',
     element: (
-      <ProtectedRoute requiredRole="buddy">
+      <ProtectedRoute>
         <AssignFlowPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/buddy/flows/:flowId',
+    element: (
+      <ProtectedRoute requiredRole="buddy">
+        <BuddyFlowPreviewPage />
       </ProtectedRoute>
     ),
   },
@@ -62,6 +72,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <FlowPreviewPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/flows/:flowId/step/:stepId',
+    element: (
+      <ProtectedRoute>
+        <FlowStepPage />
       </ProtectedRoute>
     ),
   },
