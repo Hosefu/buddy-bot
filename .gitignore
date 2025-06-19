@@ -20,3 +20,4 @@ htmlcov/
 # Frontend
 frontend/node_modules/
 frontend/package-lock.json
+node_modules/
