@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>BuddyBot API – Спецификация</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 0; }
+    #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 250px; background: #f4f4f4; padding: 20px; overflow-y: auto; }
+    #sidebar h2 { font-size: 1.1em; margin-top: 1em; margin-bottom: 0.5em; }
+    #sidebar ul { list-style: none; padding-left: 0; }
+    #sidebar li { margin: 5px 0; }
+    #sidebar a { color: #336699; text-decoration: none; }
+    #sidebar a:hover { text-decoration: underline; }
+    #content { margin-left: 270px; padding: 20px; }
+    h1 { font-size: 2em; margin-top: 0; }
+    h2 { font-size: 1.5em; border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-top: 2em; }
+    h3 { font-size: 1.2em; margin-top: 1.5em; }
+    pre, code { background: #eee; padding: 5px; }
+    .example { background: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin: 10px 0; }
+    .example pre { margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h2>Разделы</h2>
+    <ul>
+      <li><a href="#overview">Введение</a></li>
+      <li><a href="#concepts">Основные концепции</a>
+        <ul>
+          <li><a href="#concept-users">Пользователи и роли</a></li>
+          <li><a href="#concept-flows">Потоки обучения (Flow)</a></li>
+          <li><a href="#concept-steps">Этапы потока (FlowStep)</a></li>
+          <li><a href="#concept-tasks">Задания (Task)</a></li>
+          <li><a href="#concept-quizzes">Квизы (Quiz)</a></li>
+          <li><a href="#concept-progress">Прогресс и статусы</a></li>
+          <li><a href="#concept-buddy">Система Buddy (наставничество)</a></li>
+          <li><a href="#concept-snapshots">Снапшоты контента</a></li>
+        </ul>
+      </li>
+      <li><a href="#endpoints">Описание эндпоинтов</a>
+        <ul>
+          <li><a href="#auth-endpoints">Аутентификация</a></li>
+          <li><a href="#user-endpoints">Эндпоинты пользователя (My)</a></li>
+          <li><a href="#content-endpoints">Эндпоинты прохождения контента</a></li>
+          <li><a href="#buddy-endpoints">Эндпоинты Buddy</a></li>
+          <li><a href="#admin-endpoints">Эндпоинты Модератора (Admin)</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+  <div id="content">
+    <h1 id="overview">BuddyBot API – Техническая спецификация</h1>
+    <p>Данный документ описывает идеальный REST/RPC API для системы онбординга <strong>BuddyBot</strong> – корпоративного приложения для адаптации новых сотрудников в форме Telegram Mini App:contentReference[oaicite:0]{index=0}. Спецификация предназначена для разработчиков и проектных менеджеров и включает описание ключевых концепций системы, подробное описание каждого API-эндпоинта, требования по правам доступа, примеры запросов/ответов и рекомендации по улучшению текущего API.</p>
+
+    <h2 id="concepts">Основные концепции</h2>
+    <p>Перед описанием методов API важно понять сущности и терминологию системы. Ниже перечислены ключевые концепции BuddyBot:</p>
+
+    <h3 id="concept-users">Пользователи и Роли</h3>
+    <p>В системе есть три типа ролей пользователей:contentReference[oaicite:1]{index=1}:contentReference[oaicite:2]{index=2}:</p>
+    <ul>
+      <li><strong>User (Пользователь):</strong> Новый сотрудник, проходящий обучение. Может видеть назначенные ему потоки, проходить их этапы, просматривать свои результаты, добавлять статьи в закладки и т.д.:contentReference[oaicite:3]{index=3}</li>
+      <li><strong>Buddy (Бадди, Наставник):</strong> Опытный сотрудник-наставник. Может назначать потоки обучения пользователям, отслеживать и управлять прогрессом своих подопечных (приостанавливать или возобновлять их обучение), получает уведомления о проблемах и помогает в прохождении:contentReference[oaicite:4]{index=4}.</li>
+      <li><strong>Moderator (Модератор, Администратор):</strong> Администратор системы с полным доступом. Может создавать и редактировать обучающие потоки, управлять пользователями и их ролями, просматривать аналитику и отчёты:contentReference[oaicite:5]{index=5}.</li>
+    </ul>
+    <p>Каждый пользователь может иметь несколько ролей одновременно (реализовано через связь многие-ко-многим Role):contentReference[oaicite:6]{index=6}:contentReference[oaicite:7]{index=7}. При регистрации через Telegram новым пользователям по умолчанию присваивается базовая роль <em>"user"</em>:contentReference[oaicite:8]{index=8}:contentReference[oaicite:9]{index=9}.</p>
+
+    <h3 id="concept-flows">Поток обучения (Flow)</h3>
+    <p><strong>Поток</strong> – это курс или программа онбординга, составленная из последовательности этапов (шагов) обучения:contentReference[oaicite:10]{index=10}. Каждый Flow имеет название и описание:contentReference[oaicite:11]{index=11}, может быть помечен как обязательный для всех новых сотрудников (<code>is_mandatory</code>) и настроен на автоматическое назначение сотрудникам определённых отделов (<code>auto_assign_departments</code>):contentReference[oaicite:12]{index=12}. Поток включает несколько этапов (FlowStep), описанных ниже. Один поток может содержать разные типы контента: статьи, задания, квизы и т.д.:contentReference[oaicite:13]{index=13}:contentReference[oaicite:14]{index=14}. Поток может быть назначен конкретному пользователю для прохождения – такой процесс называется <strong>UserFlow</strong> (см. ниже).</p>
+
+    <h3 id="concept-steps">Этап потока (FlowStep)</h3>
+    <p><strong>Этап</strong> – отдельный шаг внутри потока обучения. Каждый FlowStep имеет заголовок, описание шага и определённый тип содержимого:contentReference[oaicite:15]{index=15}:contentReference[oaicite:16]{index=16}. Этап может включать:</p>
+    <ul>
+      <li><strong>Статью (Article)</strong> – теоретический материал или руководство для чтения.</li>
+      <li><strong>Задание (Task)</strong> – практическую задачу с проверкой (например, найти кодовое слово).</li>
+      <li><strong>Квиз (Quiz)</strong> – тест с вопросами и вариантами ответов.</li>
+    </ul>
+    <p>Технически один этап может содержать несколько видов контента одновременно (например, статью и связанный с ней квиз):contentReference[oaicite:17]{index=17}:contentReference[oaicite:18]{index=18}, но в типовом сценарии используется один тип контента на этап. У этапа есть порядок <code>order</code> в потоке, и этапы проходят последовательно. После создания FlowStep автоматически маркируется как <code>is_active=True</code> (активный) по умолчанию; удаление этапа производится "мягко" (деактивацией) через API модератора (см. ниже).</p>
+
+    <h3 id="concept-tasks">Задания (Task)</h3>
+    <p><strong>Задание</strong> – этап, требующий от пользователя выполнения практического задания и ввода ответ (кодового слова). Модель Task содержит текст задания, инструкцию, подсказку и правильное кодовое слово:contentReference[oaicite:19]{index=19}:contentReference[oaicite:20]{index=20}. При прохождении задания пользователь отправляет ответ через API; система проверяет введённое слово на соответствие правильному (без учёта регистра и лишних пробелов):contentReference[oaicite:21]{index=21}. Результат проверки (правильно или нет) немедленно возвращается пользователю. Пользователь может повторять попытки, пока не введёт правильный ответ (в идеале система может ограничивать число попыток или предоставлять подсказку, если предусмотрено).</p>
+
+    <h3 id="concept-quizzes">Квизы (Quiz)</h3>
+    <p><strong>Квиз</strong> – этап-проверка знаний, содержащий один или несколько вопросов с вариантами ответов. Модель Quiz включает заголовок, описание (необязательное), проходной процент правильных ответов (напр. 70%) и флаги перемешивания вопросов/ответов:contentReference[oaicite:22]{index=22}:contentReference[oaicite:23]{index=23}. Квиз связан с набором вопросов (QuizQuestion) и вариантов ответов (QuizAnswer) на каждый вопрос. Пользователь отвечает на вопросы квиза по одному; после каждого ответа API возвращает, правильный ли ответ, а также может предоставить разъяснение и (опционально) правильный ответ, если пользователь ошибся. Когда пользователь ответил на все вопросы квиза, квиз считается пройденным. Если процент правильных ответов >= требуемого, этап квиза отмечается как пройденный успешно.</p>
+
+    <h3 id="concept-progress">Прогресс и статусы прохождения</h3>
+    <p>Для отслеживания хода обучения используются модели <strong>UserFlow</strong> (прогресс пользователя по потоку) и <strong>UserStepProgress</strong> (прогресс по каждому этапу):contentReference[oaicite:24]{index=24}:contentReference[oaicite:25]{index=25}. Они содержат важные поля:</p>
+    <ul>
+      <li><strong>UserFlow.status</strong> – статус прохождения потока. Возможные значения: <code>not_started</code> (не начат), <code>in_progress</code> (в процессе), <code>paused</code> (приостановлен наставником), <code>completed</code> (завершён), <code>suspended</code> (принудительно остановлен/заблокирован):contentReference[oaicite:26]{index=26}:contentReference[oaicite:27]{index=27}.</li>
+      <li><strong>UserStepProgress.status</strong> – статус прохождения конкретного этапа. Значения: <code>locked</code> (этап ещё заблокирован, предыдущие не пройдены), <code>available</code> (доступен для прохождения), <code>in_progress</code> (начат, но не завершён), <code>completed</code> (полностью завершён):contentReference[oaicite:28]{index=28}:contentReference[oaicite:29]{index=29}.</li>
+      <li>Дополнительно UserFlow хранит временные отметки начала (<code>started_at</code>) и окончания (<code>completed_at</code>) прохождения, текущий активный этап (<code>current_step</code>), дедлайн завершения (<code>expected_completion_date</code>, рассчитывается автоматически на основе числа этапов):contentReference[oaicite:30]{index=30}:contentReference[oaicite:31]{index=31}, а также кем и когда поток был поставлен на паузу (если применимо).</li>
+      <li>UserStepProgress хранит отметки времени завершения части контента: <code>article_read_at</code> (прочтение статьи), <code>task_completed_at</code>, <code>quiz_completed_at</code>, количество правильных ответов в квизе и общее число вопросов (<code>quiz_correct_answers</code>, <code>quiz_total_questions</code>):contentReference[oaicite:32]{index=32}:contentReference[oaicite:33]{index=33}. Эти поля используются для формирования сводного результата по этапу и вычисления процента правильных ответов (<code>quiz_score_percentage</code>).</li>
+    </ul>
+    <p>Новые потоки назначаются пользователю со статусом <code>not_started</code>. Когда пользователь начинает выполнение первого шага, статус UserFlow переключается на <code>in_progress</code> и сохраняется время начала:contentReference[oaicite:34]{index=34}. При прохождении этапов система динамически разблокирует следующий этап: как только предыдущий помечен <code>completed</code>, следующий этап переведётся из <code>locked</code> в <code>available</code>:contentReference[oaicite:35]{index=35}:contentReference[oaicite:36]{index=36}. Когда все этапы завершены, статус UserFlow становится <code>completed</code> и фиксируется время завершения:contentReference[oaicite:37]{index=37}.</p>
+
+    <h3 id="concept-buddy">Система Buddy (Наставники и подопечные)</h3>
+    <p>За каждым новым сотрудником может быть закреплён один или несколько наставников – <strong>Buddy</strong>. При назначении потока обучения пользователю указывается основной бадди (инициатор назначения) и при необходимости дополнительные бадди:contentReference[oaicite:38]{index=38}:contentReference[oaicite:39]{index=39}. Эта связь хранится в модели <strong>FlowBuddy</strong>, которая связывает UserFlow с наставником и содержит настройки прав этого наставника (например, может ли ставить на паузу, возобновлять, продлевать дедлайн):contentReference[oaicite:40]{index=40}:contentReference[oaicite:41]{index=41}. По умолчанию все флаги <code>can_pause_flow</code>, <code>can_resume_flow</code> и др. установлены в True, позволяя бадди управлять ходом обучения подопечного.</p>
+    <p>Один UserFlow может иметь сразу нескольких активных бадди (например, основного и ассистента):contentReference[oaicite:42]{index=42}. Все действующие бадди хранятся как <code>flow_buddies</code> внутри UserFlow и возвращаются в API. Когда бадди приостанавливает или возобновляет обучение, эти действия отражаются в статусе UserFlow и логируются (см. Снапшоты и история ниже). Если бадди удаляет обучение (решает прекратить прохождение потока для подопечного), UserFlow помечается как удалённый, а событие записывается в лог действий.</p>
+
+    <h3 id="concept-snapshots">Снапшоты контента и история</h3>
+    <p><strong>Снапшот</strong> – это сохранённая копия контента этапа и ответов пользователя на момент прохождения. Снапшоты позволяют зафиксировать, какой материал видел пользователь и как он на него ответил, даже если исходные статьи/вопросы позже изменятся:contentReference[oaicite:43]{index=43}:contentReference[oaicite:44]{index=44}. В системе реализованы следующие снапшоты:</p>
+    <ul>
+      <li><strong>ArticleSnapshot:</strong> создаётся при чтении статьи. Сохраняет заголовок и текст статьи, а также время чтения:contentReference[oaicite:45]{index=45}:contentReference[oaicite:46]{index=46}.</li>
+      <li><strong>TaskSnapshot:</strong> создаётся при отправке ответа на задание. Сохраняет формулировку задания, инструкцию, подсказку, правильное кодовое слово (на момент прохождения), а также ответ пользователя, флаг правильности и количество попыток:contentReference[oaicite:47]{index=47}:contentReference[oaicite:48]{index=48}.</li>
+      <li><strong>QuizSnapshot:</strong> создаётся после прохождения квиза (когда пользователь ответил на все вопросы). Содержит заголовок квиза, описание, проходной порог, число вопросов, число правильных ответов, процент набранных баллов и флаг, пройден ли квиз успешно:contentReference[oaicite:49]{index=49}:contentReference[oaicite:50]{index=50}.</li>
+      <li><strong>QuizQuestionSnapshot</strong> и <strong>QuizAnswerSnapshot:</strong> сохраняют каждый вопрос квиза и все варианты ответа на момент прохождения:contentReference[oaicite:51]{index=51}:contentReference[oaicite:52]{index=52} (включая пометку, какой ответ правильный). Это позволяет точно восстановить содержимое квиза, которое видел пользователь.</li>
+      <li><strong>UserQuizAnswerSnapshot:</strong> фиксирует выбор пользователя по каждому вопросу: какой вариант он выбрал и правильный ли он:contentReference[oaicite:53]{index=53}:contentReference[oaicite:54]{index=54}.</li>
+    </ul>
+    <p>Помимо снапшотов, система ведёт журнал действий (модель <strong>FlowAction</strong>):contentReference[oaicite:55]{index=55}:contentReference[oaicite:56]{index=56}: старт обучения, завершение этапа, постановка на паузу, возобновление, удаление и т.п. Каждое действие содержит тип, кто его выполнил (<code>performed_by</code>), причину/комментарий и метаданные. Эти действия используются для отчётов и отображения недавней активности. Например, при приостановке потока бадди создаётся запись действия с причиной паузы:contentReference[oaicite:57]{index=57}. В идеальном API журнал действий может быть доступен через отдельные эндпоинты или включён в ответы аналитических методов.</p>
+
+    <h2 id="endpoints">Описание API эндпоинтов</h2>
+    <p>Далее описаны все основные методы API. Для каждого эндпоинта указаны метод HTTP и путь, назначение, требуемые параметры, роли, примеры запросов и ответов, а также возможные ошибки.</p>
+
+    <h3 id="auth-endpoints">Аутентификация и Пользователи</h3>
+    <h4>POST /api/auth/telegram/ – Авторизация через Telegram</h4>
+    <p><strong>Назначение:</strong> вход пользователя в систему через Telegram Mini App. Этот эндпоинт принимает данные, предоставляемые Telegram (идентификатор пользователя, имя, username, время авторизации и хеш) и выполняет валидацию подписи:contentReference[oaicite:58]{index=58}:contentReference[oaicite:59]{index=59}. При успешной валидации создаётся новый пользователь (если он зашёл впервые) или обновляется существующий (например, обновляется имя или username):contentReference[oaicite:60]{index=60}:contentReference[oaicite:61]{index=61}. Новому пользователю автоматически присваивается базовая роль "user":contentReference[oaicite:62]{index=62}. В ответ возвращается JWT-токен доступа и refresh-токен для аутентификации в дальнейшем.</p>
+    <p><strong>Права доступа:</strong> Доступен без авторизации (AllowAny), так как это точка входа в систему.</p>
+    <p><strong>Тело запроса:</strong> JSON с полями, полученными от Telegram:</p>
+    <pre class="example"><code>{
+  "id": "123456789",
+  "first_name": "Ivan",
+  "last_name": "Ivanov",
+  "username": "ivan_ivanov",
+  "photo_url": "https://t.me/i/userpic",
+  "auth_date": "1690000000",
+  "hash": "abcdef123456..."
+}</code></pre>
+    <p>Поля <code>id</code>, <code>first_name</code>, <code>auth_date</code> и <code>hash</code> обязательны. <code>last_name</code>, <code>username</code>, <code>photo_url</code> – опционально.</p>
+    <p><strong>Пример успешного ответа:</strong></p>
+    <pre class="example"><code>{
+  "user": {
+    "id": 42,
+    "telegram_id": "123456789",
+    "name": "Ivan Ivanov",
+    "telegram_username": "ivan_ivanov",
+    "position": null,
+    "department": null,
+    "hire_date": null,
+    "is_active": true,
+    "last_login_at": "2025-06-19T19:10:00Z",
+    "created_at": "2025-06-19T19:09:59Z",
+    "roles": [
+      {
+        "id": 1,
+        "name": "user",
+        "display_name": "Пользователь",
+        "description": "Базовая роль"
+      }
+    ],
+    "telegram_link": "https://t.me/ivan_ivanov"
+  },
+  "tokens": {
+    "access": "<JWT access token>",
+    "refresh": "<JWT refresh token>"
+  }
+}</code></pre>
+    <p>Ответ содержит данные профиля пользователя (включая присвоенные роли и ссылку на Telegram, если доступна) и JWT токены. Значения <code>access</code> и <code>refresh</code> – это строки токенов, используемых для авторизации последующих запросов (через заголовок <code>Authorization: Bearer &lt;access_token&gt;</code>).</p>
+    <p><strong>Возможные ошибки:</strong></p>
+    <ul>
+      <li>400 Bad Request – неверные или неполные данные авторизации Telegram. Например, если нарушена целостность <code>hash</code> (проверка не проходит) или истекло время действия данных (<code>auth_date</code> слишком старый):contentReference[oaicite:63]{index=63}, вернётся ошибка <code>{"error": "Неверная подпись данных Telegram"}</code> или <code>{"error": "Данные авторизации устарели"}</code>.</li>
+      <li>500 Internal Server Error – внутренняя ошибка сервера при создании пользователя или других операциях (маловероятно, но обрабатывается общим случаем).</li>
+    </ul>
+
+    <h4>POST /api/auth/refresh/ – Обновление JWT-токена</h4>
+    <p><strong>Назначение:</strong> обновление токена доступа. Используется refresh-токен, выданный при авторизации, для получения нового access-токена. Этот эндпоинт реализован стандартным механизмом JWT (используется <code>rest_framework_simplejwt</code>):contentReference[oaicite:64]{index=64}.</p>
+    <p><strong>Права доступа:</strong> Доступен без авторизации (по токену обновления).</p>
+    <p><strong>Тело запроса:</strong> JSON с полем <code>refresh</code> (refresh-токен).</p>
+    <pre class="example"><code>{ "refresh": "<JWT refresh token>" }</code></pre>
+    <p><strong>Пример ответа:</strong> при валидном токене обновления возвращается новый access-токен:</p>
+    <pre class="example"><code>{
+  "access": "<новый JWT access token>"
+}</code></pre>
+    <p><strong>Ошибки:</strong> 401 Unauthorized – если refresh-токен просрочен или недействителен (например, уже использован или отозван), вернётся сообщение об ошибке, например <code>{"detail": "Token is invalid or expired"}</code>.</p>
+
+    <h4>GET /api/auth/me/ – Информация о текущем пользователе</h4>
+    <p><strong>Назначение:</strong> получение профиля текущего авторизованного пользователя. Этот эндпоинт возвращает те же данные, что и поле <code>user</code> при авторизации, но актуальные на момент запроса. Пользователь может увидеть свои роли, имя, отдел, позицию и т.п. Также метод может использоваться приложением для проверки валидности токена (если токен просрочен, ответ будет 401).</p>
+    <p><strong>Права доступа:</strong> Требует действующий access-токен (любой авторизованный пользователь).</p>
+    <p><strong>Пример запроса:</strong> <code>GET /api/auth/me/</code> с заголовком <code>Authorization: Bearer &lt;access_token&gt;</code>.</p>
+    <p><strong>Пример ответа:</strong></p>
+    <pre class="example"><code>{
+  "id": 42,
+  "telegram_id": "123456789",
+  "name": "Ivan Ivanov",
+  "telegram_username": "ivan_ivanov",
+  "position": null,
+  "department": null,
+  "hire_date": null,
+  "is_active": true,
+  "last_login_at": "2025-06-19T19:20:00Z",
+  "created_at": "2025-06-19T19:09:59Z",
+  "roles": [
+    {
+      "id": 1,
+      "name": "user",
+      "display_name": "Пользователь",
+      "description": "Базовая роль"
+    },
+    {
+      "id": 2,
+      "name": "buddy",
+      "display_name": "Бадди",
+      "description": "Наставник для новичков"
+    }
+  ],
+  "telegram_link": "https://t.me/ivan_ivanov"
+}</code></pre>
+    <p>Если пользователь имеет несколько ролей, они перечисляются списком. В примере у пользователя роли "user" и "buddy". Поля <code>position</code>, <code>department</code>, <code>hire_date</code> могут быть заполнены модератором при создании пользователя или отредактированы пользователем в профиле (см. ниже).</p>
+    <p><strong>Ошибки:</strong> 401 Unauthorized – если токен не предоставлен или недействителен. 403 Forbidden – маловероятно (например, если пользователь заблокирован).</p>
+
+    <h4>GET/PUT /api/auth/profile/ – Просмотр и редактирование профиля</h4>
+    <p><strong>Назначение:</strong> позволяет пользователю просмотреть и обновить определённые поля своего профиля. GET-запрос возвращает ту же информацию, что и <code>/me/</code>, но реализован отдельным сериализатором ProfileSerializer:contentReference[oaicite:65]{index=65}. PUT (или PATCH) запрос позволяет изменить поля: <code>name</code>, <code>position</code>, <code>department</code>, <code>hire_date</code>. Поля <code>email</code>, <code>roles</code> и большинство технических полей доступны только для чтения и не могут быть изменены пользователем самостоятельно.</p>
+    <p><strong>Права доступа:</strong> Авторизованный пользователь (IsActiveUser).</p>
+    <p><strong>Пример ответа (GET):</strong></p>
+    <pre class="example"><code>{
+  "id": 42,
+  "email": "ivan@example.com",
+  "name": "Ivan Ivanov",
+  "telegram_username": "ivan_ivanov",
+  "position": "Инженер-программист",
+  "department": "R&D",
+  "hire_date": "2025-06-01",
+  "roles": ["user", "buddy"],
+  "created_at": "2025-06-19T19:09:59Z"
+}</code></pre>
+    <p>Обратите внимание: email пользователя может быть заполнен только модератором (например, при импорте списка сотрудников) и доступен только для чтения самим пользователем. Телеграм username тоже только для чтения (берётся с Telegram).</p>
+    <p><strong>Пример запроса на обновление (PUT):</strong></p>
+    <pre class="example"><code>{
+  "name": "Ivan I. Ivanov",
+  "position": "Senior Developer",
+  "department": "Research & Development",
+  "hire_date": "2025-06-01"
+}</code></pre>
+    <p><strong>Пример ответа на обновление:</strong> статус 200 и возвращается обновлённый профиль (аналогично структуре GET).</p>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>400 Bad Request – если переданы некорректные данные (например, неверный формат даты или слишком длинное имя).</li>
+      <li>401 Unauthorized – при отсутствии токена.</li>
+    </ul>
+
+    <h4>POST /api/auth/change-password/ – Смена пароля</h4>
+    <p><strong>Назначение:</strong> позволяет пользователю установить новый пароль для своей учётной записи. Хотя вход происходит через Telegram, наличие пароля может потребоваться для доступа через веб-интерфейс (админпанель Django) или альтернативной аутентификации. Пользователь должен предоставить свой текущий пароль и дважды новый пароль.</p>
+    <p><strong>Права доступа:</strong> Авторизованный пользователь.</p>
+    <p><strong>Тело запроса:</strong></p>
+    <pre class="example"><code>{
+  "old_password": "oldpass123",
+  "new_password": "NewPass!2025",
+  "new_password_confirm": "NewPass!2025"
+}</code></pre>
+    <p><strong>Пример успешного ответа:</strong> <code>{"message": "Пароль успешно изменен"}</code> (200 OK).</p>
+    <p><strong>Возможные ошибки:</strong></p>
+    <ul>
+      <li>400 Bad Request – если старый пароль неверен <em>(<code>{"old_password": ["Неверный старый пароль"]}</code>)</em>:contentReference[oaicite:66]{index=66}, либо новые пароли не совпадают <em>(<code>{"new_password": ["Новые пароли не совпадают"]}</code>)</em>:contentReference[oaicite:67]{index=67}, или не удовлетворяют требованиям длины (минимум 8 символов):contentReference[oaicite:68]{index=68}.</li>
+      <li>401 Unauthorized – токен не предоставлен/неверен.</li>
+    </ul>
+
+    <h4>GET /api/auth/users/ – Список пользователей (ADMIN)</h4>
+    <p><strong>Назначение:</strong> получения списка всех пользователей системы (для администраторов). Позволяет фильтровать по отделу, роли или поисковому запросу (по имени или Telegram ID):contentReference[oaicite:69]{index=69}:contentReference[oaicite:70]{index=70}. Используется для управления пользователями, например, чтобы найти сотрудников и изменить их роли.</p>
+    <p><strong>Права доступа:</strong> Только модератор (IsModerator):contentReference[oaicite:71]{index=71}.</p>
+    <p><strong>Параметры запроса (query params):</strong></p>
+    <ul>
+      <li><code>department=&lt;подстрока&gt;</code> – фильтр по названию отдела (case-insensitive содержит).</li>
+      <li><code>role=&lt;role_name&gt;</code> – фильтр по роли (например, <code>role=buddy</code> вернёт только наставников):contentReference[oaicite:72]{index=72}.</li>
+      <li><code>search=&lt;строка&gt;</code> – поиск по имени, Telegram ID или username:contentReference[oaicite:73]{index=73}.</li>
+    </ul>
+    <p><strong>Пример запроса:</strong> <code>GET /api/auth/users/?role=buddy&search=Ivan</code> – получить всех активных пользователей-<em>buddy</em>, у которых имя или телеграм содержит "Ivan".</p>
+    <p><strong>Пример ответа:</strong> стандартный paginated list (может быть LimitOffset или PageNumber пагинация). Например:</p>
+    <pre class="example"><code>{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 42,
+      "name": "Ivan Ivanov",
+      "telegram_id": "123456789",
+      "position": "Senior Developer",
+      "department": "R&D",
+      "is_active": true,
+      "roles": ["user", "buddy"],
+      "created_at": "2025-06-19T19:09:59Z"
+    },
+    {
+      "id": 43,
+      "name": "Petr Petrov",
+      "telegram_id": "987654321",
+      "position": "HR Manager",
+      "department": "HR",
+      "is_active": true,
+      "roles": ["user"],
+      "created_at": "2025-05-10T10:00:00Z"
+    }
+  ]
+}</code></pre>
+    <p>Каждый объект содержит краткую информацию о пользователе (сериализация UserListSerializer):contentReference[oaicite:74]{index=74}:contentReference[oaicite:75]{index=75}. Поле <code>roles</code> здесь – список названий ролей (для краткости), а не объектов.</p>
+    <p><strong>Ошибки:</strong> 401 Unauthorized – если не авторизован. 403 Forbidden – если авторизован, но не модератор.</p>
+
+    <h4>POST /api/auth/users/ – Создание нового пользователя (ADMIN)</h4>
+    <p><strong>Назначение:</strong> добавить нового пользователя в систему. Модератор может завести учётную запись для сотрудника, указав его Telegram ID и основные данные, если, например, необходимо предварительно создать всех новичков до их первого входа.</p>
+    <p><strong>Права доступа:</strong> Только модератор.</p>
+    <p><strong>Тело запроса:</strong> JSON с полями: <code>telegram_id</code> (строка или число), <code>name</code> (имя сотрудника), <code>password</code> и <code>password_confirm</code> (если хотят сразу задать пароль), а также необязательные <code>position</code>, <code>department</code>, <code>hire_date</code>:contentReference[oaicite:76]{index=76}:contentReference[oaicite:77]{index=77}.</p>
+    <p><strong>Пример запроса:</strong></p>
+    <pre class="example"><code>{
+  "telegram_id": "555555555",
+  "name": "Sidor Sidorov",
+  "password": "TestPass123",
+  "password_confirm": "TestPass123",
+  "position": "Intern",
+  "department": "R&D",
+  "hire_date": "2025-07-01"
+}</code></pre>
+    <p><strong>Пример ответа:</strong> при успешном создании возвращается 201 Created и объект пользователя (подробный, как в /api/auth/me/). Новый пользователь по умолчанию будет иметь роль "user". Чтобы назначить другие роли – использовать отдельный эндпоинт роли (см. ниже).</p>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>400 Bad Request – неверные данные. Например, если <code>password</code> и <code>password_confirm</code> не совпадают:contentReference[oaicite:78]{index=78}, будет ошибка валидации; если Telegram ID уже занят другим пользователем:contentReference[oaicite:79]{index=79}, вернётся ошибка уникальности.</li>
+      <li>401/403 – как в предыдущем методе.</li>
+    </ul>
+
+    <h4>GET/PUT/DELETE /api/auth/users/{id}/ – Управление конкретным пользователем (ADMIN)</h4>
+    <p><strong>Назначение:</strong> методы для получения подробной информации, обновления или деактивации пользователя. <strong>GET</strong> возвращает подробный профиль пользователя (сериализатор UserDetailSerializer, аналогичный UserSerializer, плюс поле <code>updated_at</code>):contentReference[oaicite:80]{index=80}. <strong>PUT/PATCH</strong> позволяют модератору изменить данные пользователя (например, исправить имя, отдел, назначить email, дату найма). <strong>DELETE</strong> не удаляет запись физически, а помечает пользователя как неактивного (soft delete):contentReference[oaicite:81]{index=81}:contentReference[oaicite:82]{index=82}.</p>
+    <p><strong>Права доступа:</strong> Только модератор.</p>
+    <p><strong>Пример ответа (GET):</strong></p>
+    <pre class="example"><code>{
+  "id": 43,
+  "telegram_id": "987654321",
+  "name": "Petr Petrov",
+  "telegram_username": "petr_petrov",
+  "position": "HR Manager",
+  "department": "HR",
+  "hire_date": "2025-05-01",
+  "is_active": true,
+  "last_login_at": "2025-06-01T09:00:00Z",
+  "created_at": "2025-05-10T10:00:00Z",
+  "updated_at": "2025-06-10T12:00:00Z",
+  "roles": [
+    {
+      "id": 1, "name": "user", "display_name": "Пользователь", "description": "Базовая роль"
+    }
+  ]
+}</code></pre>
+    <p><strong>Пример обновления (PATCH):</strong> например, можно деактивировать пользователя или изменить отдел:</p>
+    <pre class="example"><code>{
+  "is_active": false,
+  "department": "HR Department"
+}</code></pre>
+    <p><strong>Пример ответа на обновление:</strong> обновлённый объект пользователя (как в GET).</p>
+    <p><strong>Пример удаления (DELETE):</strong> <code>DELETE /api/auth/users/43/</code> – пометит пользователя 43 как <code>is_active = false</code>. Успешный ответ: статус 204 No Content (пустое тело).</p>
+    <p><strong>Ошибки:</strong> 404 Not Found – если пользователь с данным id не найден или уже неактивен. 400 – при нарушении уникальности или других проверок (например, присвоение неверного формата email).</p>
+
+    <h4>GET /api/auth/roles/ – Список ролей (ADMIN)</h4>
+    <p><strong>Назначение:</strong> получить список всех доступных ролей в системе (например, чтобы отобразить в интерфейсе админа, какие роли можно назначить). Возвращает id, системное имя, отображаемое имя и описание каждой роли:contentReference[oaicite:83]{index=83}.</p>
+    <p><strong>Права доступа:</strong> Модератор.</p>
+    <p><strong>Пример ответа:</strong></p>
+    <pre class="example"><code>[
+  {
+    "id": 1,
+    "name": "user",
+    "display_name": "Пользователь",
+    "description": "Базовая роль"
+  },
+  {
+    "id": 2,
+    "name": "buddy",
+    "display_name": "Бадди",
+    "description": "Наставник для новичков"
+  },
+  {
+    "id": 3,
+    "name": "moderator",
+    "display_name": "Модератор",
+    "description": "Администратор системы"
+  }
+]</code></pre>
+    <p><strong>Ошибки:</strong> 401/403 при отсутствии прав модератора.</p>
+
+    <h4>POST /api/auth/users/{id}/roles/ – Назначение роли пользователю (ADMIN)</h4>
+    <p><strong>Назначение:</strong> добавить пользователю новую роль (например, сделать существующего пользователя наставником или модератором). В теле запроса передаётся <code>role_id</code> роли для назначения.</p>
+    <p><strong>Права доступа:</strong> Модератор (пермишен CanManageUserRoles):contentReference[oaicite:84]{index=84}.</p>
+    <p><strong>Тело запроса:</strong> <code>{"role_id": 2}</code> (пример – назначить роль с id=2, допустим "buddy").</p>
+    <p><strong>Пример успешного ответа:</strong> 201 Created. В теле может вернуться подтверждение или объект связи роль-пользователь. В текущей реализации возвращается объект добавленной роли или сообщение. Например:</p>
+    <pre class="example"><code>{
+  "id": 10,
+  "role": {
+    "id": 2,
+    "name": "buddy",
+    "display_name": "Бадди",
+    "description": "Наставник для новичков"
+  },
+  "assigned_by_name": "Admin User",
+  "assigned_at": "2025-06-19T20:00:00Z",
+  "is_active": true,
+  "created_at": "2025-06-19T20:00:00Z"
+}</code></pre>
+    <p>Это означает, что пользователю была присвоена роль "Бадди", назначивший – Admin User.</p>
+    <p><strong>Возможные ошибки:</strong></p>
+    <ul>
+      <li>404 Not Found – указанный пользователь или роль не найдены, либо пользователь неактивен. Ответ: <code>{"error": "Пользователь или роль не найдены"}</code>:contentReference[oaicite:85]{index=85}.</li>
+      <li>400 Bad Request – если у пользователя уже есть эта роль (ошибка валидации: <code>{"non_field_errors": ["Пользователь уже имеет роль Бадди"]}</code>):contentReference[oaicite:86]{index=86}.</li>
+    </ul>
+
+    <h4>DELETE /api/auth/users/{id}/roles/{role_id}/ – Отзыв роли (ADMIN)</h4>
+    <p><strong>Назначение:</strong> убрать у пользователя указанную роль. Фактически помечает запись UserRole как неактивную (роль отозвана):contentReference[oaicite:87]{index=87}.</p>
+    <p><strong>Права доступа:</strong> Модератор.</p>
+    <p><strong>Пример успешного ответа:</strong> 200 OK с сообщением:</p>
+    <pre class="example"><code>{
+  "message": "Роль Бадди отозвана у пользователя Ivan Ivanov"
+}</code></pre>
+    <p>После этого пользователь Ivan Ivanov больше не имеет роли Buddy.</p>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>404 – если пользователь или роль не найдены, либо у пользователя не было этой роли (вернётся <code>{"error": "Пользователь не имеет указанной роли"}</code>):contentReference[oaicite:88]{index=88}.</li>
+    </ul>
+
+    <h4>GET /api/auth/buddies/ – Список наставников (ADMIN)</h4>
+    <p><strong>Назначение:</strong> получить список всех пользователей с ролью Buddy. Этот эндпоинт может использоваться при назначении бадди новым сотрудникам или для обзора всех наставников в системе.</p>
+    <p><strong>Права доступа:</strong> Модератор.</p>
+    <p><strong>Пример ответа:</strong> список пользователей-надстников (структура как в <code>/api/auth/users/</code>, отфильтрованная по роли buddy).</p>
+    <p>Примечание: фактически <code>/api/auth/buddies/</code> дублирует функциональность фильтра <code>/api/auth/users/?role=buddy</code>. В идеальной спецификации достаточно иметь один способ. Возможно, этот эндпоинт введён для удобства фронтенда. Он возвращает список активных бадди, отсортированных по имени:contentReference[oaicite:89]{index=89}.</p>
+
+    <h3 id="user-endpoints">Эндпоинты пользователя (My)</h3>
+    <p>Эти методы предназначены для конечных пользователей (сотрудников-обучаемых), чтобы они могли просматривать свои назначенные курсы и прогресс.</p>
+
+    <h4>GET /api/my/flows/ – Мои потоки</h4>
+    <p><strong>Назначение:</strong> получить список обучающих потоков, назначенных текущему пользователю (как активных, так и завершённых). Каждый элемент списка – объект <strong>UserFlow</strong>, содержащий информацию о прохождении конкретного потока данным пользователем.</p>
+    <p><strong>Права доступа:</strong> Авторизованный пользователь с ролью User (Buddy/Moderator также могут вызывать, но для них список отобразит только потоки, где они сами являются обучаемыми, что обычно пусто).</p>
+    <p><strong>Пример ответа:</strong> (предположим, пользователю назначен один поток "Онбординг")</p>
+    <pre class="example"><code>{
+  "count": 1,
+  "results": [
+    {
+      "id": 101,
+      "user": {
+        "id": 50,
+        "name": "New Employee",
+        "telegram_id": "555000111",
+        "position": "Intern",
+        "department": "R&D",
+        "is_active": true,
+        "roles": ["user"],
+        "created_at": "2025-07-01T08:00:00Z"
+      },
+      "flow": {
+        "id": 10,
+        "title": "Онбординг",
+        "description": "Добро пожаловать в компанию!",
+        "is_mandatory": false,
+        "is_active": true,
+        "total_steps": 3
+      },
+      "status": "in_progress",
+      "current_step": {
+        "id": 31,
+        "title": "Введение",
+        "description": "Этап Введение",
+        "order": 1,
+        "is_active": true,
+        "article": {
+          "id": 5,
+          "title": "Приветствие",
+          "description": "Статья приветствие",
+          "instruction": null,
+          "hint": null
+        },
+        "task": null,
+        "quiz": null
+      },
+      "progress_percentage": 0.0,
+      "is_overdue": false,
+      "flow_buddies": [
+        {
+          "id": 201,
+          "buddy_user": {
+            "id": 20,
+            "name": "Ivan Ivanov",
+            "telegram_id": "123456789",
+            "position": "Senior Developer",
+            "department": "R&D",
+            "is_active": true,
+            "roles": ["buddy"],
+            "created_at": "2025-06-19T19:09:59Z"
+          },
+          "can_pause_flow": true,
+          "can_resume_flow": true,
+          "can_extend_deadline": true,
+          "assigned_by_name": "Ivan Ivanov",
+          "assigned_at": "2025-07-01T08:10:00Z",
+          "is_active": true,
+          "created_at": "2025-07-01T08:10:00Z"
+        }
+      ],
+      "paused_by_name": null,
+      "paused_at": null,
+      "pause_reason": null,
+      "expected_completion_date": "2025-07-10",
+      "started_at": "2025-07-01T08:10:00Z",
+      "completed_at": null,
+      "created_at": "2025-07-01T08:10:00Z",
+      "updated_at": "2025-07-01T08:10:00Z"
+    }
+  ]
+}</code></pre>
+    <p>Здесь видно, что пользователю назначен поток <em>"Онбординг"</em> (3 этапа), статус <code>in_progress</code>, текущий этап – "Введение". Показаны наставники (flow_buddies), ответственные за этот поток – Ivan Ivanov. Также рассчитан прогресс (0%, так как ни один этап ещё не завершён) и ожидаемая дата завершения (через 3 рабочих дня, условно). Многие поля (<code>paused_by_name, pause_reason</code> и т.д.) не задействованы, пока поток не был приостановлен или завершён.</p>
+    <p><strong>Примечание по безопасности:</strong> API гарантирует, что пользователь видит только свои UserFlow. Попытка получить чужое прохождение (например, по другому user_id) невозможна через этот эндпоинт – фильтрация происходит внутри QuerySet метода <code>for_user(self.request.user)</code>:contentReference[oaicite:90]{index=90}.</p>
+    <p><strong>Ошибки:</strong> Обычно не возникает ошибок, кроме 401 если пользователь не авторизован.</p>
+
+    <h4>GET /api/my/progress/ – Сводный прогресс по всем потокам</h4>
+    <p><strong>Назначение:</strong> возвращает агрегированную статистику по обучению пользователя: сколько всего потоков назначено, сколько из них завершено, сколько в процессе, а также средний процент завершения (по пройденным шагам):contentReference[oaicite:91]{index=91}:contentReference[oaicite:92]{index=92}. Это может использоваться для отображения общей прогресс-индикатора или дэшборда пользователя.</p>
+    <p><strong>Права доступа:</strong> Авторизованный пользователь (свои данные).</p>
+    <p><strong>Пример ответа:</strong></p>
+    <pre class="example"><code>{
+  "total_flows": 3,
+  "completed_flows": 1,
+  "in_progress_flows": 2,
+  "average_progress": 45.5
+}</code></pre>
+    <p>Здесь, например, у пользователя 3 курса, из них 1 завершён полностью, 2 – в процессе, а средний прогресс по всем – 45.5% (то есть, в среднем пройдено почти половина шагов). Если у пользователя ещё нет назначенных потоков, возвращаются нули по всем полям:contentReference[oaicite:93]{index=93}.</p>
+    <p><strong>Ошибки:</strong> 401 если не авторизован. Других ошибок нет, так как расчёты производятся даже при отсутствии данных.</p>
+
+    <h4>GET /api/my/progress/{flow_id}/ – Детальный прогресс по одному потоку</h4>
+    <p><strong>Назначение:</strong> получить подробную информацию о прохождении пользователем конкретного потока. Возвращает объект UserFlow (тот же формат, что в <code>/api/my/flows/</code>, но дополнительно включает список <code>step_progress</code> – прогресс по каждому этапу потока):contentReference[oaicite:94]{index=94}:contentReference[oaicite:95]{index=95}.</p>
+    <p><strong>Права доступа:</strong> Авторизованный пользователь, которому назначен этот поток. Если указанный flow_id не назначен текущему пользователю, вернётся 404 (так как выборка <code>UserFlow.objects.get(user=self.request.user, flow_id=...)</code> не найдёт запись):contentReference[oaicite:96]{index=96}.</p>
+    <p><strong>Пример ответа:</strong> (продолжим пример с потоком "Онбординг", где 3 этапа: статья, задание, квиз; предположим, пользователь уже прочитал статью и выполнил задание, но ещё не прошёл квиз полностью)</p>
+    <pre class="example"><code>{
+  "id": 101,
+  "user": { ... },  // данные пользователя (как в /my/flows/)
+  "flow": { ... },  // данные потока (id, title, description, ... total_steps)
+  "status": "in_progress",
+  "current_step": {
+    "id": 33, "title": "Контроль знаний", "description": "Этап Контроль знаний", "order": 3, "is_active": true,
+    "article": null, "task": null, "quiz": { ... }
+  },
+  "progress_percentage": 66.67,
+  "is_overdue": false,
+  "flow_buddies": [ ... ],  // наставники, как выше
+  "paused_by_name": null, "paused_at": null, "pause_reason": null,
+  "expected_completion_date": "2025-07-10",
+  "started_at": "2025-07-01T08:10:00Z",
+  "completed_at": null,
+  "created_at": "...", "updated_at": "...",
+  "step_progress": [
+    {
+      "id": 301,
+      "flow_step": {
+        "id": 31,
+        "title": "Введение",
+        "description": "Этап Введение",
+        "order": 1
+      },
+      "status": "completed",
+      "is_accessible": false,
+      "article_read_at": "2025-07-01T09:00:00Z",
+      "task_completed_at": null,
+      "quiz_completed_at": null,
+      "quiz_correct_answers": null,
+      "quiz_total_questions": null,
+      "quiz_score_percentage": null,
+      "started_at": "2025-07-01T08:10:00Z",
+      "completed_at": "2025-07-01T09:00:00Z",
+      "task_snapshot": null,
+      "quiz_snapshot": null,
+      "created_at": "...", "updated_at": "..."
+    },
+    {
+      "id": 302,
+      "flow_step": {
+        "id": 32,
+        "title": "Задание",
+        "description": "Этап Задание",
+        "order": 2
+      },
+      "status": "completed",
+      "is_accessible": false,
+      "article_read_at": null,
+      "task_completed_at": "2025-07-02T10:00:00Z",
+      "quiz_completed_at": null,
+      "quiz_correct_answers": null,
+      "quiz_total_questions": null,
+      "quiz_score_percentage": null,
+      "started_at": "2025-07-01T09:00:00Z",
+      "completed_at": "2025-07-02T10:00:00Z",
+      "task_snapshot": {
+        "id": 500,
+        "task_title": "Первое задание",
+        "task_description": "Сделай A",
+        "task_instruction": "Ищи код",
+        "task_hint": null,
+        "user_answer": "word",
+        "is_correct": true,
+        "attempts_count": 2,
+        "created_at": "2025-07-02T10:00:00Z"
+      },
+      "quiz_snapshot": null,
+      "created_at": "...", "updated_at": "..."
+    },
+    {
+      "id": 303,
+      "flow_step": {
+        "id": 33,
+        "title": "Контроль знаний",
+        "description": "Этап Контроль знаний",
+        "order": 3
+      },
+      "status": "in_progress",
+      "is_accessible": true,
+      "article_read_at": null,
+      "task_completed_at": null,
+      "quiz_completed_at": null,
+      "quiz_correct_answers": 1,
+      "quiz_total_questions": 3,
+      "quiz_score_percentage": 33.33,
+      "started_at": "2025-07-02T10:01:00Z",
+      "completed_at": null,
+      "task_snapshot": null,
+      "quiz_snapshot": null,
+      "created_at": "...", "updated_at": "..."
+    }
+  ]
+}</code></pre>
+    <p>В данном примере:
+      <ul>
+        <li>Этап 1 "Введение" (статья) завершён: есть отметка времени чтения <code>article_read_at</code> и общего завершения <code>completed_at</code>. Содержание статьи не выводится здесь (пользователь уже видел его), а снапшот статьи не показан для простоты. Статус <code>completed</code>, этап недоступен (<code>is_accessible: false</code>), так как уже пройден.</li>
+        <li>Этап 2 "Задание" завершён: <code>task_completed_at</code> проставлен, есть TaskSnapshot с подробностями задания и ответа пользователя (правильный ответ "word", был дан со второй попытки – <code>attempts_count: 2</code>). Статус <code>completed</code>.</li>
+        <li>Этап 3 "Контроль знаний" (квиз) ещё в процессе: пользователь ответил на 1 из 3 вопросов правильно (33.33%), но квиз не завершён (ответы даны не на все вопросы). Статус этапа <code>in_progress</code>, он доступен (<code>is_accessible: true</code>) – пользователь может продолжать. Когда пользователь ответит на все вопросы, система создаст QuizSnapshot и, если процент правильных ≥ проходного, пометит этап как <code>completed</code>:contentReference[oaicite:97]{index=97}:contentReference[oaicite:98]{index=98}.</li>
+      </ul>
+    </p>
+    <p><strong>Особенности представления данных:</strong> Как видно, для <em>самого пользователя</em> система показывает все этапы, но скрывает детали контента для ещё не доступных (статус locked). В данном случае нет заблокированных этапов, так как они открывались последовательно. Если бы были этапы со статусом <code>locked</code>, они появились бы в списке <code>step_progress</code> только с базовой информацией (id, заголовок, описание) без поля <code>is_accessible = false</code> и без вложенных данных статьи/задания/квиза:contentReference[oaicite:99]{index=99}:contentReference[oaicite:100]{index=100}. Поскольку пользователю контент закрытых этапов не показывается заранее, API сохраняет это правило.</p>
+    <p>Для <em>наставника или модератора</em>, запрашивающего прогресс подопечного, ответ этого же эндпоинта выглядел бы иначе: были бы показаны все этапы со всеми деталями (включая контент и снапшоты):contentReference[oaicite:101]{index=101}:contentReference[oaicite:102]{index=102}, т.к. у них больше прав на просмотр. Но обычный пользователь видит только разрешённую ему информацию.</p>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>404 Not Found – если указан несуществующий flow_id, либо этот поток не назначен текущему пользователю (без права доступа).</li>
+      <li>401 Unauthorized – если не авторизован.</li>
+    </ul>
+
+    <h3 id="content-endpoints">Эндпоинты прохождения контента (Flows/Steps)</h3>
+    <p>Данные методы отвечают за непосредственное прохождение шагов – открытие материалов, отправку ответов на задания и квизы. URL этих эндпоинтов содержит идентификаторы потока и шага, а для квизов – ещё и вопроса.</p>
+
+    <h4>GET /api/flows/{flow_id}/ – Детали потока</h4>
+    <p><strong>Назначение:</strong> получить полную информацию о потоке обучения, включая все этапы. Этот метод может использоваться, чтобы отобразить структуру курса (например, список тем/этапов) перед началом прохождения или для общего ознакомления.</p>
+    <p><strong>Права доступа:</strong> Авторизованный пользователь (любой). Но этапы, возвращаемые в поле <code>flow_steps</code>, будут содержать только базовые сведения для неавторизованных шагов, если запрашивающий – обучающийся. Если запрос делает пользователь, которому поток ещё не назначен, он всё равно получит список этапов, однако фактически пройти их не сможет, пока поток не будет ему назначен (эндпоинты прохождения вернут 404/403). Buddy и Moderator могут использовать этот метод для просмотра содержания потока.</p>
+    <p><strong>Пример ответа:</strong> (для потока "Онбординг")</p>
+    <pre class="example"><code>{
+  "id": 10,
+  "title": "Онбординг",
+  "description": "Добро пожаловать в компанию!",
+  "is_mandatory": false,
+  "is_active": true,
+  "total_steps": 3,
+  "auto_assign_departments": [],
+  "flow_steps": [
+    {
+      "id": 31,
+      "title": "Введение",
+      "description": "Этап Введение",
+      "order": 1,
+      "is_active": true,
+      "article": {
+        "id": 5,
+        "title": "Приветствие",
+        "summary": "...",
+        "content": "# Заголовок\\nСодержание статьи...",
+        "is_published": true,
+        "author": {
+          "id": 1,
+          "name": "Admin User"
+        },
+        "published_at": "2025-07-01T08:00:00Z"
+      },
+      "task": null,
+      "quiz": null
+    },
+    {
+      "id": 32,
+      "title": "Задание",
+      "description": "Этап Задание",
+      "order": 2,
+      "is_active": true,
+      "article": null,
+      "task": {
+        "id": 10,
+        "title": "Первое задание",
+        "description": "Сделай A",
+        "instruction": "Ищи код",
+        "hint": null
+      },
+      "quiz": null
+    },
+    {
+      "id": 33,
+      "title": "Контроль знаний",
+      "description": "Этап Контроль знаний",
+      "order": 3,
+      "is_active": true,
+      "article": null,
+      "task": null,
+      "quiz": {
+        "id": 7,
+        "title": "Мини тест",
+        "description": "",
+        "passing_score_percentage": 100,
+        "shuffle_questions": false,
+        "shuffle_answers": false,
+        "total_questions": 1,
+        "questions": [
+          {
+            "id": 100,
+            "question": "2+2?",
+            "order": 1,
+            "answers": [
+              { "id": 1001, "answer_text": "4", "order": 1 },
+              { "id": 1002, "answer_text": "5", "order": 2 }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}</code></pre>
+    <p>Ответ содержит подробную структуру потока:
+      <ul>
+        <li>Этап 1 – имеет вложенную статью (Article) с полным содержанием. Обратите внимание: содержимое статьи (markdown) возвращается полностью, так как поля <code>content</code> и <code>summary</code> входят в сериализацию ArticleBasicSerializer (или подобного). Возможно, это избыточно – можно возвращать только ссылку/ID статьи, а контент запрашивать отдельно, но текущая реализация в сериализаторе FlowStepSerializer инлайн-включает связанные модели:contentReference[oaicite:103]{index=103}:contentReference[oaicite:104]{index=104}.</li>
+        <li>Этап 2 – содержит задание (Task) с полями, за исключением <code>code_word</code>, которое из соображений безопасности не возвращается обычным пользователям:contentReference[oaicite:105]{index=105} (у модератора в выдаче было бы видно code_word).</li>
+        <li>Этап 3 – содержит квиз (Quiz) с одним вопросом. Поля <code>is_correct</code> и <code>explanation</code> у вариантов ответа скрыты от пользователя до тех пор, пока тот не ответит, поэтому в данном эндпоинте они не показываются:contentReference[oaicite:106]{index=106}:contentReference[oaicite:107]{index=107}.</li>
+      </ul>
+    </p>
+    <p><strong>Ошибки:</strong> 404 – если поток с данным id не существует или не активен. Если поток существует, он возвращается даже если не назначен пользователю (при условии, что пользователь авторизован).</p>
+
+    <h4>GET /api/flows/{flow_id}/steps/ – Список этапов (доступных)</h4>
+    <p><strong>Назначение:</strong> получить список этапов указанного потока, доступных текущему пользователю для прохождения. Этот метод похож на предыдущий, но фильтрует этапы по доступности и не раскрывает содержание недоступных этапов.</p>
+    <p><strong>Права доступа:</strong> Авторизованный пользователь. Если поток не назначен пользователю, результат будет пустым списком (или 404).</p>
+    <p><strong>Описание:</strong> При вызове <code>GET /api/flows/10/steps/</code> для примера выше, когда пользователь ещё не начал поток, вернётся, вероятно, только первый этап (так как остальные locked) или все этапы, но логика <code>FlowStepListView</code> такова: пытается найти UserFlow для пользователя и данного потока, если не найдено – возвращает пустой QuerySet:contentReference[oaicite:108]{index=108}. Если найдено – возвращает все <code>flow_steps</code>, но, вероятно, фронтенд на основе <code>status</code> внутри <code>step_progress</code> определяет доступность. В идеале, этот эндпоинт мог бы возвращать только те шаги, которые доступны (статус не locked).</p>
+    <p><strong>Примечание:</strong> Этот метод может быть оптимизирован. В текущем API вместо него чаще используется информация из /api/my/progress/{id}/, где уже есть все шаги с статусами. Поэтому в целевой спецификации можно либо убрать дублирование, либо явно указать, что /steps/ возвращает все шаги с полями доступности.</p>
+    <p><strong>Ошибки:</strong> 404 – если поток не найден или не назначен.</p>
+
+    <h4>POST /api/flows/{flow_id}/steps/{step_id}/read/ – Отметить статью прочитанной</h4>
+    <p><strong>Назначение:</strong> сигнализирует о том, что пользователь открыл (начал читать) этап со статьёй. При первом вызове для данного этапа создаётся <em>ArticleSnapshot</em> и этап помечается как пройденный (если в нём только статья):contentReference[oaicite:109]{index=109}. Также фиксируется время прочтения <code>article_read_at</code> и при необходимости этап переводится в статус <code>completed</code> и сразу разблокируется следующий этап:contentReference[oaicite:110]{index=110}:contentReference[oaicite:111]{index=111}. Если же в шаге есть дополнительные активности (например, задание или квиз помимо статьи), то, вероятно, статус может стать <code>in_progress</code>, а завершится этап только после выполнения всех частей.</p>
+    <p><strong>Права доступа:</strong> Пользователь, которому назначен соответствующий UserFlow, и этап доступен для прохождения (не locked). Проверяется пермишен <code>CanAccessFlowStep</code> – то есть, что пользователь пытается взаимодействовать со своим потоком и шагом, который ему доступен:contentReference[oaicite:112]{index=112}:contentReference[oaicite:113]{index=113}.</p>
+    <p><strong>Тело запроса:</strong> не требуется (достаточно самого факта POST-запроса).</p>
+    <p><strong>Пример успешного ответа:</strong> 200 OK, тело может содержать обновлённые данные прогресса. В текущей реализации возвращается объект UserFlowDetailSerializer (обновлённый progress):contentReference[oaicite:114]{index=114}. Однако, чтобы не делать ответ слишком тяжёлым, можно возвращать просто <code>{"status": "completed"}</code> или <code>{"status": "in_progress"}</code> в зависимости от результата. Предположим, если статья – единственный контент шага, ответ:</p>
+    <pre class="example"><code>{
+  "status": "completed"
+}</code></pre>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>404 Not Found – если шаг не содержит статьи (не тот тип контента) или не найден (не принадлежит указанному потоку).</li>
+      <li>403 Forbidden – если шаг существует, но недоступен пользователю (например, locked или пользователь не имеет доступа к этому потоку).</li>
+    </ul>
+    <p><strong>Примечание:</strong> В текущей реализации, если этап недоступен, сервер возвращает 403 с сообщением <code>{"error": "Этап недоступен"}</code>:contentReference[oaicite:115]{index=115}:contentReference[oaicite:116]{index=116}.</p>
+
+    <h4>GET /api/flows/{flow_id}/steps/{step_id}/task/ – Получить задание</h4>
+    <p><strong>Назначение:</strong> получить детали задания для указанного этапа. В ответ приходит объект Task (заголовок, описание, инструкция, подсказка) без поля правильного ответа <code>code_word</code>:contentReference[oaicite:117]{index=117}.</p>
+    <p><strong>Права доступа:</strong> Пользователь с доступом к этапу (аналогично – проверяется, что это его поток и шаг не locked, через CanAccessFlowStep).</p>
+    <p><strong>Пример ответа:</strong></p>
+    <pre class="example"><code>{
+  "id": 10,
+  "title": "Первое задание",
+  "description": "Сделай A",
+  "instruction": "Ищи код",
+  "hint": "Если сложно, спроси наставника"
+}</code></pre>
+    <p><strong>Ошибки:</strong> 404 – если в данном шаге нет задания (например, неправильный тип шага):contentReference[oaicite:118]{index=118}:contentReference[oaicite:119]{index=119}, сообщение <code>{"error": "Этап не содержит задания"}</code>. 403 – если нет доступа (см. выше).</p>
+
+    <h4>POST /api/flows/{flow_id}/steps/{step_id}/task/ – Отправить ответ на задание</h4>
+    <p><strong>Назначение:</strong> проверяет ответ пользователя на задание и отмечает выполнение этапа (если ответ верный). Если ответ неверный, этап не помечается завершённым, и пользователь может повторить попытку.</p>
+    <p><strong>Права доступа:</strong> Пользователь – участник потока, этап доступен (CanAccessFlowStep). Также на сервере проверяется, что этап ещё не завершён ранее, чтобы не допустить повторное прохождение:contentReference[oaicite:120]{index=120}.</p>
+    <p><strong>Тело запроса:</strong> JSON с полем <code>answer</code> – строка, введённая пользователем.</p>
+    <p><strong>Пример запроса:</strong> <code>{"answer": "какое-то слово"}</code>.</p>
+    <p><strong>Пример ответа (неправильный ответ):</strong></p>
+    <pre class="example"><code>{
+  "is_correct": false,
+  "status": "in_progress"
+}</code></pre>
+    <p>Пользователь получит <code>is_correct: false</code>, статус этапа останется в процессе. Можно отобразить подсказку (если предусмотрено поле hint).</p>
+    <p><strong>Пример ответа (правильный ответ):</strong></p>
+    <pre class="example"><code>{
+  "is_correct": true,
+  "status": "completed"
+}</code></pre>
+    <p>При правильном ответе метод с помощью сервиса <code>FlowService.complete_task_step</code> отмечает этап завершённым, сохраняет TaskSnapshot с ответом:contentReference[oaicite:121]{index=121}:contentReference[oaicite:122]{index=122}, и возвращает <code>is_correct: true</code> и обновлённый статус шага. Кроме того, в UserStepProgress проставляется <code>task_completed_at</code>, а следующий этап разблокируется:contentReference[oaicite:123]{index=123}:contentReference[oaicite:124]{index=124}.</p>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>400 Bad Request – если поле <code>answer</code> пустое или отсутствует (валидация не пройдена: <code>{"answer": ["Ответ не может быть пустым"]}</code>):contentReference[oaicite:125]{index=125}.</li>
+      <li>404 Not Found – если шаг не содержит задания (ошибка как в GET). Также 404, если поток или шаг не найдены по указанным ID.</li>
+      <li>400 Bad Request – если этап уже был завершён ранее (сервер вернёт <code>{"error": "Этап уже завершен"}</code>):contentReference[oaicite:126]{index=126}.</li>
+    </ul>
+
+    <h4>GET /api/flows/{flow_id}/steps/{step_id}/quiz/ – Получить квиз</h4>
+    <p><strong>Назначение:</strong> получить данные квиза для указанного этапа. Возвращается объект Quiz с вложенными вопросами и вариантами ответов. Правильные ответы не раскрываются пользователю на этом этапе (поля <code>is_correct</code> и объяснения не включены):contentReference[oaicite:127]{index=127}:contentReference[oaicite:128]{index=128}.</p>
+    <p><strong>Права доступа:</strong> Пользователь – участник потока, этап доступен (CanAccessFlowStep).</p>
+    <p><strong>Пример ответа:</strong> (продолжим пример: квиз с одним вопросом)</p>
+    <pre class="example"><code>{
+  "id": 7,
+  "title": "Мини тест",
+  "description": "",
+  "passing_score_percentage": 100,
+  "shuffle_questions": false,
+  "shuffle_answers": false,
+  "total_questions": 1,
+  "questions": [
+    {
+      "id": 100,
+      "question": "2+2?",
+      "order": 1,
+      "answers": [
+        { "id": 1001, "answer_text": "4", "order": 1 },
+        { "id": 1002, "answer_text": "5", "order": 2 }
+      ]
+    }
+  ]
+}</code></pre>
+    <p>Флаг <code>shuffle_answers</code> если true – сервер уже перемешает порядок в массиве <code>answers</code>:contentReference[oaicite:129]{index=129}; аналогично <code>shuffle_questions</code> – порядок вопросов. В данном примере оба false, поэтому порядок как в базе.</p>
+    <p><strong>Ошибки:</strong> 404 – если квиз не найден на этом шаге (например, неверный step_id или тип контента не квиз):contentReference[oaicite:130]{index=130}:contentReference[oaicite:131]{index=131}. 403 – если нет доступа (не назначен поток или этап locked).</p>
+
+    <h4>POST /api/flows/{flow_id}/steps/{step_id}/quiz/{question_id}/ – Ответ на вопрос квиза</h4>
+    <p><strong>Назначение:</strong> отправляет ответ пользователя на конкретный вопрос квиза. Можно вызывать этот эндпоинт последовательно для каждого вопроса квиза или несколькими запросами для разных вопросов в произвольном порядке (но логично по порядку).</p>
+    <p><strong>Права доступа:</strong> Пользователь – участник потока (IsActiveUser). Специально не проверяется CanAccessFlowStep, но перед обработкой проверяется:
+      <ul>
+        <li>Наличие квиза в шаге.</li>
+        <li>Что указанный вопрос принадлежит этому квизу.</li>
+        <li>Что пользователь действительно проходит данный поток (UserFlow с таким flow_id у пользователя есть):contentReference[oaicite:132]{index=132}:contentReference[oaicite:133]{index=133}.</li>
+      </ul>
+    </p>
+    <p><strong>Тело запроса:</strong> JSON с полем <code>answer_id</code> – ID выбранного варианта ответа.</p>
+    <p><strong>Пример запроса:</strong> <code>{"answer_id": 1002}</code> (пользователь выбрал вариант "5" на вопрос 2+2?).</p>
+    <p><strong>Пример ответа (неверный ответ):</strong></p>
+    <pre class="example"><code>{
+  "message": "Ответ сохранен",
+  "is_correct": false,
+  "correct_answer": {
+    "id": 1001,
+    "text": "4",
+    "explanation": "Верно"
+  },
+  "is_completed": false
+}</code></pre>
+    <p>Объяснение:
+      <ul>
+        <li><code>is_correct: false</code> – выбранный ответ неправильный.</li>
+        <li><code>correct_answer</code> – система возвращает правильный вариант для информации: ID правильного ответа, текст и пояснение к нему (если задано):contentReference[oaicite:134]{index=134}. В данном случае правильный ответ "4".</li>
+        <li><code>message: "Ответ сохранен"</code> – подтверждение сохранения (можно игнорировать на клиенте).</li>
+        <li><code>is_completed: false</code> – квиз ещё не завершён, т.к. либо остались вопросы, либо (как в этом случае) прохождение прерывается из-за неправильного ответа? В текущей реализации <code>is_completed</code> = true, только если пользователь ответил на все вопросы квиза:contentReference[oaicite:135]{index=135}:contentReference[oaicite:136]{index=136}. Здесь, хотя ответ неверный, пользователь всё ещё может попробовать снова? Но обычно квизы либо позволяют один ответ на вопрос, либо проходятся целиком – уточним: В реализации, после ответа, запись <code>UserQuizAnswer</code> сохраняется (или обновляется) для этого вопроса. Пользователь может повторно вызвать для того же вопроса? Код показывает update_or_create, т.е. перезапишет ответ если повторно отправят другой вариант:contentReference[oaicite:137]{index=137}. Это спорный момент: лучше либо не позволять менять ответ, либо позволять до завершения квиза. В спецификации можно предусмотреть ограничение – один ответ на вопрос.</li>
+      </ul>
+    </p>
+    <p><strong>Пример ответа (верный ответ на последний вопрос):</strong></p>
+    <pre class="example"><code>{
+  "message": "Ответ сохранен",
+  "is_correct": true,
+  "is_completed": true
+}</code></pre>
+    <p>В случае правильного ответа <code>is_correct: true</code>, и если это был последний вопрос квиза, <code>is_completed: true</code>. Объект <code>correct_answer</code> не возвращается, так как не требуется (пользователь и так ответил верно). После того как все вопросы имеют ответы, метод <code>_check_quiz_completion</code> создаёт полный QuizSnapshot и обновляет статус шага:contentReference[oaicite:138]{index=138}:contentReference[oaicite:139]{index=139}. Если процент >= порога, <code>status</code> шага устанавливается <code>completed</code>, иначе, если квиз не пройден, шаг всё равно помечается завершённым (ведь отвечены все вопросы), но в <code>quiz_snapshot.is_passed</code> будет false. **Предложение:** в идеальном API можно дифференцировать статус "completed_passed" и "completed_failed" для квизов, чтобы обозначить, прошёл ли успешно.</p>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>400 Bad Request – если <code>answer_id</code> не относится к этому вопросу (валидация QuizSubmissionSerializer):contentReference[oaicite:140]{index=140}:contentReference[oaicite:141]{index=141}, либо если пользователь пытается отвечать не на свой поток (проверка, что question.quiz.flow_step.flow == user_flow.flow):contentReference[oaicite:142]{index=142}. В обоих случаях вернётся ValidationError.</li>
+      <li>404 Not Found – если шаг не найден, квиз отсутствует или вопрос не существует.</li>
+    </ul>
+    <p><strong>Замечание по улучшению:</strong> Текущий процесс ответа на квиз достаточно сложен: пользователю приходится вызывать отдельный метод для каждого вопроса. В REST это нормально, но можно реализовать и RPC-стиль метод, например <code>POST /api/flows/{flow_id}/steps/{step_id}/quiz/submit/</code> с массивом ответов на все вопросы квиза за один запрос. Это могло бы упростить логику на клиенте и на сервере (единовременная проверка всего квиза). Однако шаг-за-шагом тоже приемлем, особенно для адаптивных квизов.</p>
+
+    <h3 id="buddy-endpoints">Эндпоинты Buddy (наставника)</h3>
+    <p>Эти методы доступны для пользователей с ролью Buddy (или Moderator, поскольку модератор имеет права бадди тоже):contentReference[oaicite:143]{index=143}. С их помощью наставники могут назначать потоки своим подопечным, просматривать их список, отслеживать прогресс и управлять (ставить на паузу/возобновлять).</p>
+
+    <h4>GET /api/buddy/users/ – Список пользователей для назначения</h4>
+    <p><strong>Назначение:</strong> возвращает список всех пользователей, которым наставник может назначить обучающие потоки. Как правило, это список всех активных пользователей, кроме, возможно, модераторов. Реализация использует <code>User.objects.active_users()</code> – т.е. все активные учётные записи:contentReference[oaicite:144]{index=144}. В идеале, можно было бы исключать самих бадди и модераторов, если им не предполагается назначать курсы, но в текущей версии такого фильтра нет.</p>
+    <p><strong>Права доступа:</strong> роль Buddy (или Moderator).</p>
+    <p><strong>Пример ответа:</strong> список пользователей (в формате UserListSerializer, аналогично /api/auth/users/, но, вероятно, без фильтров) отсортированный по имени.</p>
+    <p><strong>Ошибки:</strong> 401/403 – если не наставник или модератор.</p>
+
+    <h4>GET /api/buddy/flows/ – Список доступных потоков для назначения</h4>
+    <p><strong>Назначение:</strong> возвращает список всех активных обучающих потоков, которые наставник может назначать своим подопечным. Наставник сам не создаёт курсы (это делает модератор), но он видит все опубликованные курсы.</p>
+    <p><strong>Права доступа:</strong> Buddy (или Moderator).</p>
+    <p><strong>Пример ответа:</strong> список объектов Flow (сериализация FlowSerializer с полями id, title, description, is_mandatory, is_active, total_steps, auto_assign_departments):contentReference[oaicite:145]{index=145}:contentReference[oaicite:146]{index=146}. Например:</p>
+    <pre class="example"><code>[
+  {
+    "id": 10,
+    "title": "Онбординг",
+    "description": "Добро пожаловать в компанию!",
+    "is_mandatory": false,
+    "is_active": true,
+    "total_steps": 3,
+    "auto_assign_departments": []
+  },
+  {
+    "id": 11,
+    "title": "Техника безопасности",
+    "description": "Правила охраны труда и техники безопасности.",
+    "is_mandatory": true,
+    "is_active": true,
+    "total_steps": 5,
+    "auto_assign_departments": ["Factory", "Warehouse"]
+  }
+]</code></pre>
+    <p>Наставник может выбрать из этого списка поток (по id) и запустить его для конкретного пользователя с помощью следующего метода.</p>
+
+    <h4>POST /api/buddy/flows/{flow_id}/start/ – Назначение потока подопечному</h4>
+    <p><strong>Назначение:</strong> запускает выбранный поток обучения для указанного пользователя (подопечного). В результате создаётся запись UserFlow (статус сразу <code>in_progress</code>), а текущий пользователь автоматически назначается главным бадди. Опционально можно указать дополнительных бадди.</p>
+    <p><strong>Права доступа:</strong> Buddy или Moderator (IsBuddyOrModerator):contentReference[oaicite:147]{index=147}. Проверка <code>CanManageFlow</code> не требуется при старте – достаточно иметь право бадди.</p>
+    <p><strong>Тело запроса:</strong> JSON с параметрами:
+      <ul>
+        <li><code>user_id</code> – ID пользователя (подопечного), которому назначается поток.</li>
+        <li><code>expected_completion_date</code> – (optional) желаемая дата завершения. Если не указана, система рассчитает автоматически на основе сложности потока (количества этапов):contentReference[oaicite:148]{index=148}:contentReference[oaicite:149]{index=149}.</li>
+        <li><code>additional_buddies</code> – список ID пользователей, которых также назначить наставниками на этот поток (помимо текущего):contentReference[oaicite:150]{index=150}:contentReference[oaicite:151]{index=151}. По умолчанию можно передать пустой список или не указывать.</li>
+      </ul>
+    </p>
+    <p><strong>Пример запроса:</strong></p>
+    <pre class="example"><code>{
+  "user_id": 50,
+  "additional_buddies": [21, 22]
+}</code></pre>
+    <p>Здесь бадди запускает flow_id для пользователя с id=50 и привлекает наставников с id 21 и 22 в качестве дополнительных.</p>
+    <p><strong>Пример успешного ответа:</strong> 201 Created. Возвращается объект UserFlow, представляющий созданное прохождение (аналогично тому, что появится в /api/my/flows у подопечного и /api/buddy/my-flows у бадди). Например:</p>
+    <pre class="example"><code>{
+  "id": 102,
+  "user": { "id": 50, "name": "New Employee", ... },
+  "flow": { "id": 10, "title": "Онбординг", ... },
+  "status": "in_progress",
+  "current_step": { ... первый шаг ... },
+  "progress_percentage": 0.0,
+  "expected_completion_date": "2025-07-10",
+  "flow_buddies": [
+    { "buddy_user": {... текущий бадди ...}, "assigned_by_name": "Ivan Ivanov", ... },
+    { "buddy_user": {... id 21 ...}, "assigned_by_name": "Ivan Ivanov", ... },
+    { "buddy_user": {... id 22 ...}, "assigned_by_name": "Ivan Ivanov", ... }
+  ],
+  "started_at": "2025-07-01T08:15:00Z",
+  "updated_at": "2025-07-01T08:15:00Z",
+  ... остальные поля ...
+}</code></pre>
+    <p>Видно, что все указанные наставники добавлены в <code>flow_buddies</code> (assigned_by_name у всех "Ivan Ivanov" – т.е. инициатор назначения):contentReference[oaicite:152]{index=152}. Подопечный с id 50 теперь имеет этот поток в своём списке /api/my/flows.</p>
+    <p><strong>Возможные ошибки:</strong></p>
+    <ul>
+      <li>409 Conflict – если у данного пользователя уже есть активное прохождение этого же потока (статус in_progress или paused):contentReference[oaicite:153]{index=153}. Вернётся <code>{"error": "Для этого пользователя уже запущен этот поток."}</code>. В таком случае повторно назначать не нужно.</li>
+      <li>404 Not Found – если указанный подопечный не найден или неактивен (валидатор выдаст <code>{"user_id": ["Пользователь не найден"]}</code>):contentReference[oaicite:154]{index=154}, или если какой-то из <code>additional_buddies</code> не существует/не является бадди (ошибка <code>{"additional_buddies": ["Некоторые пользователи не найдены или не являются бадди"]}</code>):contentReference[oaicite:155]{index=155}:contentReference[oaicite:156]{index=156}.</li>
+      <li>403 Forbidden – если пытается вызывать не бадди (не имея прав).</li>
+      <li>400 Bad Request – прочие ошибки валидации (маловероятно, т.к. основное покрыто выше).</li>
+    </ul>
+
+    <h4>GET /api/buddy/my-flows/ – Потоки, где я являюсь бадди</h4>
+    <p><strong>Назначение:</strong> возвращает список всех UserFlow, в которых текущий пользователь числится наставником (бадди):contentReference[oaicite:157]{index=157}:contentReference[oaicite:158]{index=158}. Проще говоря, это все активные подопечные данного наставника и их курсы.</p>
+    <p><strong>Права доступа:</strong> Buddy или Moderator.</p>
+    <p><strong>Пример ответа:</strong> формат такой же, как у /api/my/flows/, только список сформирован по другому критерию (flow_buddies содержит текущего пользователя). Например, если бадди Иван – наставник пользователей с id 50 и 51:</p>
+    <pre class="example"><code>{
+  "count": 2,
+  "results": [
+    {
+      "id": 102,
+      "user": { "id": 50, "name": "New Employee", ... },
+      "flow": { "id": 10, "title": "Онбординг", ... },
+      "status": "in_progress",
+      "current_step": { ... },
+      "progress_percentage": 0.0,
+      "is_overdue": false,
+      "flow_buddies": [ ... Ivan ... (assigned_by_name...), ... ],
+      "expected_completion_date": "2025-07-10",
+      "started_at": "2025-07-01T08:15:00Z",
+      ...
+    },
+    {
+      "id": 103,
+      "user": { "id": 51, "name": "Another Employee", ... },
+      "flow": { "id": 11, "title": "Техника безопасности", ... },
+      "status": "paused",
+      "current_step": { ... },
+      "progress_percentage": 50.0,
+      "is_overdue": false,
+      "flow_buddies": [ ... Ivan ... ],
+      "expected_completion_date": "2025-07-20",
+      "started_at": "2025-07-01T09:00:00Z",
+      "paused_by_name": "Ivan Ivanov",
+      "paused_at": "2025-07-05T12:00:00Z",
+      "pause_reason": "Отпуск сотрудника",
+      ...
+    }
+  ]
+}</code></pre>
+    <p>В этом примере у Ивана два подопечных. У второго курс приостановлен Иваном с указанием причины.</p>
+    <p><strong>Ошибки:</strong> 401/403 – если не бадди.</p>
+
+    <h4>GET /api/buddy/flows/{user_flow_id}/ – Прогресс подопечного</h4>
+    <p><strong>Назначение:</strong> просмотреть детали прохождения конкретного подопечного. В отличие от /api/my/progress/{flow_id}/, идентификатор здесь – id записи UserFlow (уникальный идентификатор прохождения, а не id самого курса):contentReference[oaicite:159]{index=159}. Возвращает UserFlowDetailSerializer, то есть подробности, включая step_progress, но без ограничений (наставнику видны все этапы и их статусы/контент):contentReference[oaicite:160]{index=160}.</p>
+    <p><strong>Права доступа:</strong> Buddy или Moderator, который является бадди в этом UserFlow. Проверяется IsBuddyOrModerator + кастомный пермишен <code>CanManageFlow</code>, который, вероятно, проверяет то же самое (что текущий пользователь в списке flow_buddies данного UserFlow):contentReference[oaicite:161]{index=161}:contentReference[oaicite:162]{index=162}. Если пользователь не является наставником этого конкретного прохождения, получит 403 Forbidden.</p>
+    <p><strong>Пример ответа:</strong> тот же формат, что мы показывали в разделе /api/my/progress/{flow_id}/, но без урезаний. Т.е. наставник увидит все поля, снапшоты и контент шагов подопечного. Например, Иван запросил /api/buddy/flows/103/ для UserFlow 103 (из примера выше, подопечный 51): он получит объект UserFlow (id 103, user id 51, flow "Техника безопасности", status "paused", и step_progress по всем 5 этапам, в том числе можно увидеть на каком этапе остановился, какие ответы дал и т.д.).</p>
+    <p><strong>Ошибки:</strong> 404 – если указан несуществующий или уже удалённый UserFlow. 403 – если текущий пользователь не является наставником этого UserFlow.</p>
+
+    <h4>POST /api/buddy/flows/{user_flow_id}/pause/ – Пауза потока</h4>
+    <p><strong>Назначение:</strong> приостановить обучение подопечного по указанному курсу. Используется, например, если сотрудник в отпуске, заболел или по другой причине должен временно прекратить прохождение.</p>
+    <p><strong>Права доступа:</strong> Buddy (или Moderator) – причём обязательно тот, кто является наставником этого потока (CanManageFlow):contentReference[oaicite:163]{index=163}:contentReference[oaicite:164]{index=164}.</p>
+    <p><strong>Тело запроса:</strong> JSON с опциональным полем <code>reason</code> (причина паузы):contentReference[oaicite:165]{index=165}.</p>
+    <p><strong>Пример запроса:</strong> <code>{"reason": "Отпуск до 20 июля"}</code>.</p>
+    <p><strong>Пример ответа:</strong> <code>{"status": "paused"}</code> (200 OK). После этого UserFlow.status станет "paused", запишется кто поставил на паузу и когда, а также причина:contentReference[oaicite:166]{index=166}:contentReference[oaicite:167]{index=167}. Следующие этапы не будут доступны пользователю, пока поток на паузе (прогресс не сможет обновляться, это даже контролируется в модели – запрет менять прогресс при паузе):contentReference[oaicite:168]{index=168}.</p>
+    <p><strong>Ошибки:</strong></p>
+    <ul>
+      <li>400 Bad Request – если, например, поток уже в статусе не позволяющем паузу (если не IN_PROGRESS). В текущей реализации специально не обрабатывается – метод <code>pause()</code> внутри UserFlow сам не сделает ничего, если статус не in_progress. Можно вернуть 400 с сообщением "Нельзя приостановить поток в текущем статусе".</li>
+      <li>403 Forbidden – если текущий пользователь не бадди этого UserFlow (собщение "Вы не являетесь бадди этого потока."):contentReference[oaicite:169]{index=169}:contentReference[oaicite:170]{index=170}.</li>
+      <li>404 Not Found – если user_flow_id неверный.</li>
+    </ul>
+
+    <h4>POST /api/buddy/flows/{user_flow_id}/resume/ – Возобновление потока</h4>
+    <p><strong>Назначение:</strong> снять паузу и продолжить обучение подопечного. После вызова этого метода пользователь снова сможет проходить этапы (ранее заблокированные из-за паузы этапы станут доступны там, где остановились).</p>
+    <p><strong>Права доступа:</strong> Buddy (или Moderator), являющийся наставником (аналогично pause).</p>
+    <p><strong>Тело запроса:</strong> не требуется.</p>
+    <p><strong>Пример ответа:</strong> <code>{"status": "in_progress"}</code> (200 OK). UserFlow.status снова <code>in_progress</code>, поля <code>paused_by, paused_at, pause_reason</code> обнулены:contentReference[oaicite:171]{index=171}:contentReference[oaicite:172]{index=172}, время возобновления можно отследить по updated_at. В историю FlowAction записывается событие Resume.</p>
+    <p><strong>Ошибки:</strong> 403 – если не бадди этого потока (с тем же сообщением про отсутствие прав):contentReference[oaicite:173]{index=173}:contentReference[oaicite:174]{index=174}. 404 – если не найден user_flow.</p>
+
+    <h4>DELETE /api/buddy/flows/{user_flow_id}/ – Завершение/удаление обучения</h4>
+    <p><strong>Назначение:</strong> (В текущем коде это реализовано как DELETE на BuddyFlowManageView) – позволяет наставнику досрочно прекратить прохождение потока подопечным. Например, если стало неактуально или по ошибке назначили. В результате UserFlow будет помечен как удалённый (или полностью удалён):contentReference[oaicite:175]{index=175}:contentReference[oaicite:176]{index=176}, а в лог добавится соответствующее действие с причиной удаления.</p>
+    <p><strong>Права доступа:</strong> Buddy – наставник данного UserFlow (или модератор).</p>
+    <p><strong>Пример ответа:</strong> 204 No Content при успехе.</p>
+    <p><strong>Замечание:</strong> Возможно, правильнее было бы пометить статус как <code>suspended</code> (заблокировано) вместо полного удаления записи, чтобы сохранять историю. В текущей реализации, судя по коду, выполняется <code>instance.delete()</code> модели UserFlow:contentReference[oaicite:177]{index=177}:contentReference[oaicite:178]{index=178}, что удалит её из базы. В идеальной спецификации лучше делать "мягкое" завершение: переводить статус в <code>suspended</code> или <code>completed</code> с особым флагом отмены, а запись оставлять для отчётности.</p>
+    <p><strong>Ошибки:</strong> 403 – если не наставник. 404 – если не найдено или уже удалено.</p>
+
+    <h3 id="admin-endpoints">Эндпоинты Модератора (Admin)</h3>
+    <p>Административные методы позволяют управлять самими обучающими программами (потоками и этапами), а также просматривать сводную аналитику по системе.</p>
+
+    <h4>GET /api/admin/flows/ – Список потоков (ADMIN)</h4>
+    <p><strong>Назначение:</strong> получить список всех существующих (активных) потоков обучения. Используется модератором для просмотра и поиска нужного курса, а также для формирования интерфейса управления (редактирования/удаления).</p>
+    <p><strong>Права доступа:</strong> Moderator (IsModerator):contentReference[oaicite:179]{index=179}.</p>
+    <p><strong>Пример ответа:</strong> список Flow, например:</p>
+    <pre class="example"><code>[
+  {
+    "id": 10,
+    "title": "Онбординг",
+    "description": "Добро пожаловать в компанию!",
+    "is_mandatory": false,
+    "is_active": true,
+    "total_steps": 3,
+    "auto_assign_departments": []
+  },
+  {
+    "id": 11,
+    "title": "Техника безопасности",
+    "description": "Правила охраны труда и техники безопасности.",
+    "is_mandatory": true,
+    "is_active": true,
+    "total_steps": 5,
+    "auto_assign_departments": ["Factory", "Warehouse"]
+  }
+]</code></pre>
+    <p>Модератор видит все потоки, включая обязательность и настроенные авто-назначения. Можно добавить фильтрацию (по активности, по обязательности, поиск по названию) – в спецификации можно предусмотреть query параметры, если нужно.</p>
+
+    <h4>POST /api/admin/flows/ – Создание нового потока (ADMIN)</h4>
+    <p><strong>Назначение:</strong> создать новую программу обучения (Flow). Модератор указывает название и описание (обязательно), а также при желании флаги <code>is_mandatory</code> и <code>auto_assign_departments</code>.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Тело запроса:</strong> JSON с полями:
+      <ul>
+        <li><code>title</code> (строка, обязат.) – название потока.</li>
+        <li><code>description</code> (строка, обязат.) – описание цели и содержания.</li>
+        <li><code>is_mandatory</code> (bool, опц.) – обязательный ли поток для всех новых сотрудников (по умолчанию false).</li>
+        <li><code>auto_assign_departments</code> (array of strings, опц.) – список названий отделов, которым этот поток должен автоматически назначаться. По умолчанию пустой список.</li>
+      </ul>
+    </p>
+    <p><strong>Пример запроса:</strong></p>
+    <pre class="example"><code>{
+  "title": "Новый поток",
+  "description": "Описание нового потока",
+  "is_mandatory": false,
+  "auto_assign_departments": ["Sales", "Marketing"]
+}</code></pre>
+    <p><strong>Пример успешного ответа:</strong> 201 Created и объект нового потока:</p>
+    <pre class="example"><code>{
+  "id": 12,
+  "title": "Новый поток",
+  "description": "Описание нового потока",
+  "is_mandatory": false,
+  "is_active": true,
+  "total_steps": 0,
+  "auto_assign_departments": ["Sales", "Marketing"]
+}</code></pre>
+    <p><strong>Ошибки:</strong> 400 – если не заполнено название или описание (ошибки валидации: требуются оба поля). Пример: <code>{"title": ["This field is required"]}</code> если забыли указать название:contentReference[oaicite:180]{index=180}:contentReference[oaicite:181]{index=181}. Другие поля опциональны; возможно также 400, если title слишком длинный (более 255 символов) или подобное.</p>
+
+    <h4>GET /api/admin/flows/{id}/ – Детали потока (ADMIN)</h4>
+    <p><strong>Назначение:</strong> получить подробности конкретного потока – аналогично публичному GET /api/flows/{id}/, но без ограничений. Модератор видит все этапы, включая контент полностью, а также может получить неактивные (удалённые) этапы, если нужно (текущая реализация, однако, возвращает только is_active=True).</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Пример ответа:</strong> идентичен примеру для публичного, но плюс модератор получит:
+      <ul>
+        <li>У заданий – поле <code>code_word</code> (правильное слово):contentReference[oaicite:182]{index=182}, чтобы он его знал и мог при необходимости менять.</li>
+        <li>У квизов – во вложенных <code>answers</code> будут видны <code>is_correct</code> и <code>explanation</code】 для всех вариантов (так как у модератора has_role('moderator') сериализатор QuizAnswerSerializer раскроет их):contentReference[oaicite:183]{index=183}. Это позволяет модератору видеть ключи правильных ответов.</li>
+      </ul>
+    </p>
+
+    <h4>PUT/PATCH /api/admin/flows/{id}/ – Редактирование потока</h4>
+    <p><strong>Назначение:</strong> изменить свойства потока – название, описание или параметры обязательности. Позволяет модератору актуализировать информацию о курсе.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Тело запроса:</strong> любые из полей, перечисленных в создании (title, description, is_mandatory, auto_assign_departments). Нельзя прямо через этот метод менять список этапов – для этого есть отдельные методы.</p>
+    <p><strong>Пример запроса:</strong> <code>{"description": "Обновленное описание"}</code>.</p>
+    <p><strong>Пример ответа:</strong> 200 OK с обновлённым объектом Flow.</p>
+    <p><strong>Ошибки:</strong> 404 – если поток не найден (или был мягко удалён, см. ниже). 400 – если нарушены ограничения (например, пустое название).</p>
+
+    <h4>DELETE /api/admin/flows/{id}/ – Удаление потока</h4>
+    <p><strong>Назначение:</strong> деактивировать поток обучения. Текущая реализация делает "мягкое" удаление: <code>instance.delete()</code> помечает <code>is_active=False</code> у потока и его этапов (так как модели ActiveModel):contentReference[oaicite:184]{index=184}:contentReference[oaicite:185]{index=185}. Это значит, что поток не будет виден пользователям и наставникам.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Пример ответа:</strong> 204 No Content.</p>
+    <p><strong>Замечание:</strong> Если нужно полное удаление, возможно, нужно очистить связанные UserFlow, но обычно такого не делают, чтобы не нарушить историю. Лучше оставлять запись неактивной. В спецификации можно оговорить, что при DELETE поток переходит в статус архивного.</p>
+
+    <h4>GET /api/admin/flows/{flow_id}/steps/ – Список этапов потока (ADMIN)</h4>
+    <p><strong>Назначение:</strong> получить список этапов данного потока для целей управления (например, отображения в конструкторе курса). Возвращает активные шаги с деталями (сериализация FlowStepSerializer):contentReference[oaicite:186]{index=186}:contentReference[oaicite:187]{index=187}.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Пример ответа:</strong> список этапов (аналогично полю flow_steps в деталях потока).</p>
+
+    <h4>POST /api/admin/flows/{flow_id}/steps/ – Создание нового этапа (ADMIN)</h4>
+    <p><strong>Назначение:</strong> добавить новый шаг в указанный поток. Модератор задаёт заголовок и описание этапа. Тип контента этапа задаётся не напрямую, а путем привязки контента после создания шага.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Тело запроса:</strong> <code>{"title": "...", "description": "..."}</code>. Порядок шага определяется автоматически – добавляется в конец (order = last+1):contentReference[oaicite:188]{index=188}.</p>
+    <p><strong>Пример ответа:</strong> 201 Created, объект FlowStep:</p>
+    <pre class="example"><code>{
+  "id": 34,
+  "title": "Новый этап",
+  "description": "Описание шага",
+  "order": 4,
+  "is_active": true,
+  "article": null,
+  "task": null,
+  "quiz": null
+}</code></pre>
+    <p>Этап создан, но контент (article/task/quiz) пока не прикреплён. Далее модератор должен создать соответствующую сущность контента и привязать её к этому шагу:
+      <ul>
+        <li>Если это статья: вызвать, например, <code>POST /api/articles/</code> (эндпоинт приложения guides) с указанием <code>flow_step: 34</code> в теле – тогда статья привяжется к шагу 34.</li>
+        <li>Если задание: вызвать специальный метод привязки задания (в текущем API прямого нет – задание создаётся через ORM или можно сделать эндпоинт). В идеале, стоит иметь <code>POST /api/admin/flows/{flow_id}/steps/{step_id}/task</code> для создания задания на шаге.</li>
+        <li>Аналогично для квиза – возможно, через endpoints квизов или сразу созданием Quiz с указанием flow_step.</li>
+      </ul>
+    </p>
+    <p><strong>Предложение улучшения:</strong> В идеале API для модератора должен позволять сразу создавать этап нужного типа. Например, иметь поле <code>type</code> и вложенные данные: <code>{"title": "...", "description": "...", "type": "task", "task": { ... данные задания ... }}</code>. Тогда одним запросом можно создать шаг с содержимым. Сейчас это делать нужно в несколько шагов, что осложняет работу.</p>
+    <p><strong>Ошибки:</strong> 400 – отсутствие title/description. 404 – если flow_id неверен (поток не найден).</p>
+
+    <h4>GET /api/admin/flows/{flow_id}/steps/{step_id}/ – Детали этапа (ADMIN)</h4>
+    <p><strong>Назначение:</strong> получить информацию по конкретному шагу. Включает его контент (article/task/quiz), если есть. Модератор может видеть все детали, включая правильные ответы, кодовые слова и т.п.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Пример ответа:</strong> аналогичен представлению этапа в /api/flows/{id}/ (public), но с раскрытием скрытых ранее полей (как отмечалось: code_word, is_correct flags).</p>
+
+    <h4>PUT/PATCH /api/admin/flows/{flow_id}/steps/{step_id}/ – Редактирование этапа (ADMIN)</h4>
+    <p><strong>Назначение:</strong> изменить заголовок/описание этапа, либо, возможно, перевести его в неактивный (удалить). Редактирование контента шага (текста статьи, вопросов квиза) происходит через соответствующие сервисы (например, /api/articles/{id}/ для статьи).</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Пример:</strong> <code>{"title": "Новое название шага"}</code> – переименует этап.</p>
+    <p><strong>Ошибки:</strong> 404 – если шаг не найден. 400 – если валидация не пройдена.</p>
+
+    <h4>DELETE /api/admin/flows/{flow_id}/steps/{step_id}/ – Удаление этапа (ADMIN)</h4>
+    <p><strong>Назначение:</strong> удалить (деактивировать) шаг из потока. Если этап уже был назначен кому-то, то, вероятно, нужно особое поведение – но в текущей реализации просто помечается is_active=False (мягкое удаление):contentReference[oaicite:189]{index=189}:contentReference[oaicite:190]{index=190}. После этого этап не будет возвращаться в списках и не повлияет на новые назначения.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Ошибки:</strong> 404 – если не найден.</p>
+    <p><strong>Улучшение:</strong> модератору можно предупреждать, если этап уже проходился кем-то (есть UserStepProgress), чтобы понимать последствия удаления.</p>
+
+    <h4>GET /api/admin/analytics/ – Общая статистика системы (ADMIN)</h4>
+    <p><strong>Назначение:</strong> вернуть сводную статистику по системе обучения: общее количество пользователей, активных курсов, завершённых курсов, просроченных курсов и т.д.:contentReference[oaicite:191]{index=191}:contentReference[oaicite:192]{index=192}. Это позволяет администратору оценить прогресс всех новичков и эффективность онбординга.</p>
+    <p><strong>Права доступа:</strong> Moderator.</p>
+    <p><strong>Пример ответа:</strong></p>
+    <pre class="example"><code>{
+  "users": {
+    "total": 100,
+    "with_active_flows": 30,
+    "completed_flows": 20,
+    "overdue_flows": 5
+  },
+  "flows": {
+    "total": 12,
+    "completion_rate": 66.67
+  },
+  "recent_activity": [
+    {
+      "id": 1000,
+      "action_type": "started",
+      "action_type_display": "Назначение потока",
+      "performed_by": { "id": 20, "name": "Ivan Ivanov", ... },
+      "reason": "Поток назначен бадди",
+      "metadata": {
+        "user_id": 50, "user_name": "New Employee", "buddies": [20, 21]
+      },
+      "performed_at": "2025-07-01T08:15:00Z"
+    },
+    {
+      "id": 1001,
+      "action_type": "paused",
+      "action_type_display": "Пауза потока",
+      "performed_by": { "id": 20, "name": "Ivan Ivanov", ... },
+      "reason": "Отпуск",
+      "metadata": { },
+      "performed_at": "2025-07-05T12:00:00Z"
+    },
+    ...
+  ]
+}</code></pre>
+    <p>Здесь:
+      <ul>
+        <li><code>users.total</code> – общее число активных пользователей в системе:contentReference[oaicite:193]{index=193}.</li>
+        <li><code>users.with_active_flows</code> – сколько пользователей сейчас в процессе обучения (с хотя бы одним незавершённым курсом):contentReference[oaicite:194]{index=194}.</li>
+        <li><code>users.completed_flows</code> – сколько прохождений курсов завершено (может быть общее число завершённых UserFlow или суммарно у пользователей, этот момент требует уточнения реализации, вероятно суммарно):contentReference[oaicite:195]{index=195}.</li>
+        <li><code>users.overdue_flows</code> – сколько обучений просрочено (текущая дата > expected_completion_date у UserFlow в статусе in_progress/not_started):contentReference[oaicite:196]{index=196}.</li>
+        <li><code>flows.total</code> – всего курсов (активных):contentReference[oaicite:197]{index=197}.</li>
+        <li><code>flows.completion_rate</code> – общий процент завершения: отношение числа завершённых UserFlow ко всем когда-либо запущенным (active) UserFlow, в процентах:contentReference[oaicite:198]{index=198}:contentReference[oaicite:199]{index=199}.</li>
+        <li><code>recent_activity</code> – последние 10 событий (FlowAction) в системе: показываются действия (назначены курсы, завершены этапы, приостановки, возобновления и т.п.) с указанием типа (с расшифровкой <code>action_type_display</code> на русском), кто выполнил, когда и дополнительной информацией:contentReference[oaicite:200]{index=200}:contentReference[oaicite:201]{index=201}. Примеры выше показывают назначение потока и паузу.</li>
+      </ul>
+    </p>
+    <p><strong>Ошибки:</strong> 401/403 – если не модератор.</p>
+
+    <h4>GET /api/admin/analytics/statistics/ – Статистика по потокам (ADMIN)</h4>
+    <p><strong>Назначение:</strong> выдаёт развернутую статистику по каждому потоку обучения – например, сколько пользователей его проходят, средний прогресс, процент завершения и т.п. Возможно, возвращает список или словарь по потокам. (Эндпоинт <code>flow_statistics</code> в коде возвращает List с агрегированными данными):contentReference[oaicite:202]{index=202}:contentReference[oaicite:203]{index=203}.</p>
+    <p><strong>Права:</strong> Moderator.</p>
+    <p><strong>Пример ответа (условный):</strong></p>
+    <pre class="example"><code>[
+  {
+    "flow_id": 10,
+    "flow_title": "Онбординг",
+    "assigned": 30,
+    "in_progress": 25,
+    "completed": 5,
+    "completion_rate": 16.67
+  },
+  {
+    "flow_id": 11,
+    "flow_title": "Техника безопасности",
+    "assigned": 20,
+    "in_progress": 10,
+    "completed": 10,
+    "completion_rate": 50.0
+  }
+]</code></pre>
+    <p>То есть, по каждому курсу указывается, сколько назначено (вообще сколько людей начали), сколько из них сейчас в процессе, сколько завершили, и процент завершения (completed/assigned*100). Формат может отличаться, т.к. напрямую в коде не видно расчётов (вероятно, UserFlowManager.statistics_by_flow()).</p>
+
+    <h4>GET /api/admin/analytics/problem-users/ – Отчёт по проблемным пользователям</h4>
+    <p><strong>Назначение:</strong> выводит список пользователей, у которых имеются проблемы с прохождением: например, их курсы просрочены или приостановлены слишком долго. Цель – дать модератору список тех, на кого стоит обратить внимание (возможно, связаться с бадди или самим сотрудником).</p>
+    <p><strong>Права:</strong> Moderator.</p>
+    <p><strong>Пример ответа:</strong></p>
+    <pre class="example"><code>[
+  {
+    "user": { "id": 50, "name": "New Employee", "email": "new@company.com" },
+    "flow": { "id": 10, "title": "Онбординг" },
+    "status": "paused",
+    "is_overdue": false,
+    "progress_percentage": 20.0,
+    "expected_completion_date": "2025-07-10",
+    "last_activity": "2025-07-05T12:00:00Z"
+  },
+  {
+    "user": { "id": 51, "name": "Another Employee", "email": "another@company.com" },
+    "flow": { "id": 12, "title": "Product Training" },
+    "status": "in_progress",
+    "is_overdue": true,
+    "progress_percentage": 40.0,
+    "expected_completion_date": "2025-06-30",
+    "last_activity": "2025-07-15T09:30:00Z"
+  }
+]</code></pre>
+    <p>Каждый объект – конкретное прохождение UserFlow, требующее внимания:
+      <ul>
+        <li>Пользователь с контактными данными (email может помочь связаться напрямую).</li>
+        <li>Курс, который он проходит.</li>
+        <li>Статус: например, paused или долго in_progress.</li>
+        <li>is_overdue – флаг просрочки дедлайна.</li>
+        <li>progress_percentage – насколько выполнен курс.</li>
+        <li>expected_completion_date – плановая дата завершения.</li>
+        <li>last_activity – время последней активности (вероятно, обновления UserFlow или шагов).</li>
+      </ul>
+    </p>
+    <p><strong>Ошибки:</strong> 401/403 – без доступа.</p>
+
+    <h2 id="conclusion">Заключение и выявленные слабые места</h2>
+    <p>Настоящая спецификация описывает целевой вариант API BuddyBot, основываясь на текущей реализации и добавляя предложения по улучшению. Основные улучшения, которые можно внедрить:</p>
+    <ul>
+      <li><strong>Упрощение создания контента:</strong> предоставить модераторам возможность создавать шаги с контентом одним запросом (вместо текущего многошагового процесса). Например, отдельные эндпоинты для добавления задания или квиза к существующему шагу, либо поддержка вложенных данных при создании шага.</li>
+      <li><strong>Ясность концепции снапшотов:</strong> в текущем API понятие снапшотов не явно экспонируется конечному пользователю, но они присутствуют в ответах (в поле <code>task_snapshot</code>, <code>quiz_snapshot</code>). Для PM и пользователей может быть неясно, что это. В идеале можно скрыть подробности снапшотов от пользовательского API (использовать их только внутренне для отчётности), либо же предоставить отдельные административные методы для просмотра истории ответов пользователя по шагам.</li>
+      <li><strong>Состояние квиза:</strong> улучшить логику прохождения квизов. Сейчас пользователь может по одному вопросу отвечать, что гибко, но нет явного шага завершения квиза, кроме как ответа на последний вопрос. В идеале можно добавить явный метод завершения квиза или вернуть более подробный статус (например, passed/failed) по итогам.</li>
+      <li><strong>Статусы этапов:</strong> рассмотреть введение под-статусов для квиза (пройден/не пройден) внутри <code>completed</code>, чтобы различать успешное и неуспешное завершение. Сейчас этап считается завершённым вне зависимости от результата квиза, что может сбивать с толку (курс-то завершён, но знание не подтверждено). Возможно, стоит требовать проходить до успешного результата или помечать Flow как не пройденный полностью, если есть проваленные квизы.</li>
+      <li><strong>Удаление записей:</strong> текущие DELETE для UserFlow (в части buddy) реально удаляют прогресс, что может приводить к потере данных. Лучше заменять на логическое удаление или отметку отмены, чтобы история сохранялась. Аналогично с удалением потоков и этапов – убедиться, что связанные данные не теряются или хотя бы логируются (FlowAction).</li>
+      <li><strong>Безопасность и доступ:</strong> убедиться, что все чувствительные действия защищены соответствующими проверками. В целом, API грамотно проверяет права (например, CanAccessFlowStep, IsBuddyOrModerator). Следует продолжать в том же духе для всех новых методов.</li>
+    </ul>
+    <p>В результате, реализуя данные улучшения и следуя приведённой документации, BuddyBot API станет более понятным, удобным и безопасным как для разработчиков, так и для конечных пользователей системы.</p>
+  </div>
+</body>
+</html>
